@@ -124,4 +124,12 @@ public class SPigletTest {
 		assertEquals("7", result.get(7));
 		assertEquals("9", result.get(8));
 	}
+	@Test
+	public void testArraySize() throws IOException, Exception, IllegalAccessException, IllegalArgumentException, InvocationTargetException, NoSuchMethodException, SecurityException, ClassNotFoundException, InstantiationException {
+		File f = new File("tests/carFrigge/ArraySizeTest.java");
+		spiglet.Program p = TestHelper.buildSpiglet(f);
+		List<String> result = TestHelper.getOutput(p);
+		assertEquals(1, result.size());
+		assertEquals("14", result.get(0));
+	}
 }

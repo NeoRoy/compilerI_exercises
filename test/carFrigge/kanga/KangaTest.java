@@ -3,13 +3,9 @@ package carFrigge.kanga;
 import static org.junit.Assert.assertEquals;
 
 import java.io.File;
-import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 
 import org.junit.Test;
-
-import beaver.Parser.Exception;
 
 public class KangaTest {
 	@Test
@@ -113,5 +109,26 @@ public class KangaTest {
 		List<String> result = KangaHelper.getOutput(f);
 		assertEquals(1, result.size());
 		assertEquals("ERROR", result.get(0));
+	}
+	@Test
+	public void testArrayNeg() throws java.lang.Exception {
+		File f = new File("tests/carFrigge/ArrayNegTest.java");
+		List<String> result = KangaHelper.getOutput(f);
+		assertEquals(1, result.size());
+		assertEquals("ERROR", result.get(0));
+	}
+	@Test
+	public void testArrayTooSmall() throws java.lang.Exception {
+		File f = new File("tests/carFrigge/ArrayTooSmallTest.java");
+		List<String> result = KangaHelper.getOutput(f);
+		assertEquals(1, result.size());
+		assertEquals("ERROR", result.get(0));
+	}
+	@Test
+	public void testArraySize() throws java.lang.Exception {
+		File f = new File("tests/carFrigge/ArraySizeTest.java");
+		List<String> result = KangaHelper.getOutput(f);
+		assertEquals(1, result.size());
+		assertEquals("14", result.get(0));
 	}
 }

@@ -3,15 +3,9 @@ package carFrigge.mips;
 import static org.junit.Assert.assertEquals;
 
 import java.io.File;
-import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 
 import org.junit.Test;
-
-import carFrigge.kanga.KangaHelper;
-import de.tu.testing.TestHelper;
-import beaver.Parser.Exception;
 
 public class MipsTest {
 	@Test
@@ -115,5 +109,47 @@ public class MipsTest {
 		List<String> result = MipsHelper.getOutput(f);
 		assertEquals(1, result.size());
 		assertEquals("ERROR", result.get(0));
+	}
+	@Test
+	public void testMultCheck1() throws java.lang.Exception {
+		File f = new File("tests/carFrigge/MultCheck1.java");
+		List<String> result = MipsHelper.getOutput(f);
+		assertEquals(1, result.size());
+		assertEquals("-5", result.get(0));
+	}
+	@Test
+	public void testMultCheck2() throws java.lang.Exception {
+		File f = new File("tests/carFrigge/MultCheck2.java");
+		List<String> result = MipsHelper.getOutput(f);
+		assertEquals(1, result.size());
+		assertEquals("8", result.get(0));
+	}
+	@Test
+	public void testMultCheck3() throws java.lang.Exception {
+		File f = new File("tests/carFrigge/MultCheck3.java");
+		List<String> result = MipsHelper.getOutput(f);
+		assertEquals(1, result.size());
+		assertEquals("-10", result.get(0));
+	}
+	@Test
+	public void testArrayNeg() throws java.lang.Exception {
+		File f = new File("tests/carFrigge/ArrayNegTest.java");
+		List<String> result = MipsHelper.getOutput(f);
+		assertEquals(1, result.size());
+		assertEquals("ERROR", result.get(0));
+	}
+	@Test
+	public void testArrayTooSmall() throws java.lang.Exception {
+		File f = new File("tests/carFrigge/ArrayTooSmallTest.java");
+		List<String> result = MipsHelper.getOutput(f);
+		assertEquals(1, result.size());
+		assertEquals("ERROR", result.get(0));
+	}
+	@Test
+	public void testArraySize() throws java.lang.Exception {
+		File f = new File("tests/carFrigge/ArraySizeTest.java");
+		List<String> result = MipsHelper.getOutput(f);
+		assertEquals(1, result.size());
+		assertEquals("14", result.get(0));
 	}
 }

@@ -19,13 +19,19 @@ class MJFrontEnd {
 //	     inputFileName = "tests/carFrigge/MainTestForKangaParameter.java";
 //      inputFileName = "tests/carFrigge/MainTestForPigletArray.java";
 //	   inputFileName = "tests/Hauke/factorial.java";
-	   inputFileName = "tests/Hauke/TreeVisitor.java";
+//	   inputFileName = "tests/Hauke/TreeVisitor.java";
 //	   inputFileName = "tests/Hauke/QuickSort.java";
+//	   inputFileName = "tests/Hauke/BubbleSort.java";
+//	   inputFileName = "tests/Hauke/MoreThan4.java";
+//	   inputFileName = "tests/Hauke/LinkedList.java";
 //	   inputFileName = "tests/carFrigge/ArrayList.java";
 //	   inputFileName = "tests/carFrigge/InnerIf3.java";
 //	   inputFileName = "tests/carFrigge/LinearSearch2.java";
 //	    inputFileName = "tests/carFrigge/MT.java";
 //	    inputFileName = "tests/carFrigge/NullTest.java";
+//	    inputFileName = "tests/carFrigge/MultCheck1.java";
+//	    inputFileName = "tests/carFrigge/MultCheck2.java";
+	    inputFileName = "tests/carFrigge/MultCheck3.java";
     }
    else {
       System.out.println("MJFrontEnd: starting on file " + args[0]);

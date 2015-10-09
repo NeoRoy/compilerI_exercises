@@ -461,8 +461,8 @@ aspect MiniJavaToPigletConversion{
 		add(result, new piglet.HLoad(new piglet.Temp(classPointer), new piglet.TempExp(new piglet.Temp(classLookupReg())), 4*classGen().getClassOffset(c)));
 		add(result, new piglet.HStore(new piglet.TempExp(new piglet.Temp(objectPointer)), 0, new piglet.TempExp(new piglet.Temp(classPointer))));
 		//TODO move class-Object to first pointer
-		for(int i = 1; i < groesse; i++){
-			add(result,new piglet.HStore(new piglet.TempExp(new piglet.Temp(objectPointer)),4*i,new piglet.IntLiteral(0)));
+		for(int i = 4; i < noetigeGroesse; i+=4){
+			add(result,new piglet.HStore(new piglet.TempExp(new piglet.Temp(objectPointer)),i,new piglet.IntLiteral(0)));
 		} 		
 		
 	  	memLookup().unblockTemp(objectPointer);

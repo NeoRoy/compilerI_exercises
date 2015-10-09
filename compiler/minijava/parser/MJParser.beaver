@@ -17,8 +17,8 @@ package minijava;
                 integer_lit,
                 ident;
 
+
 %typeof Program 		= "Program";
-%typeof op 				= "Op";
 %typeof id 				= "Id";
 %typeof ExpRest 		= "Exp";
 %typeof ExpRestList		= "List<Exp>";
@@ -37,6 +37,9 @@ package minijava;
 %typeof ClassDecl 		= "ClassDecl";
 %typeof ClassDeclList 	= "List<ClassDecl>";
 %typeof MainClass 		= "MainClass";
+
+%right MULTI, sym_mult;
+%left sym_dot_len, sym_dot,sym_open_square, sym_logic_and, PLUS, sym_minus, sym_plus, sym_less;
 
 %goal Program;
 
@@ -86,7 +89,11 @@ Statement = sym_open_curly.first StatementList.l sym_close_curly 						{: return
         | id.feld sym_open_square Exp.pos sym_close_square sym_equals Exp.value sym_semicolon
         																				{:return new ArrZuw(getLine(feld),feld,pos,value); :};
 
-Exp = Exp.l op.o Exp.r																	{: return new BinOpExp(getLine(l),l,o,r); :}
+Exp = Exp.l sym_logic_and Exp.r															{: return new BinOpExp(getLine(l),l,new And(getLine(l)),r); :}
+		| Exp.l sym_mult Exp.r			@MULTI												{: return new BinOpExp(getLine(l),l,new Mul(getLine(l)),r); :}
+		| Exp.l sym_plus Exp.r			@PLUS												{: return new BinOpExp(getLine(l),l,new Plus(getLine(l)),r); :}
+		| Exp.l sym_minus Exp.r			@MINUS												{: return new BinOpExp(getLine(l),l,new Minus(getLine(l)),r); :}
+		| Exp.l sym_less Exp.r															{: return new BinOpExp(getLine(l),l,new Less(getLine(l)),r); :}
         | Exp.f sym_open_square Exp.p sym_close_square									{: return new ArrayExp(getLine(f),f,p); :}
         | Exp.f sym_dot_len																{: return new LengthExp(getLine(f),f); :}
         | Exp.f sym_dot id.m sym_open ExpList.p sym_close								{: return new MethodExp(getLine(f),f,m,p); :}
@@ -108,9 +115,3 @@ ExpRestList = ExpRestList.l ExpRest.r													{: l.add(r); return l; :}
 ExpRest = Exp.e	sym_comma 																{: return e; :};
 
 id = ident.i																			{: return new Id(getLine(i),i.value.toString()); :};
-
-op = sym_logic_and.first																{: return new And(getLine(first)); :}
-        | sym_plus.first																{: return new Plus(getLine(first)); :}
-        | sym_minus.first																{: return new Minus(getLine(first)); :}
-        | sym_mult.first																{: return new Mul(getLine(first)); :}
-        | sym_less.first																{: return new Less(getLine(first)); :};
