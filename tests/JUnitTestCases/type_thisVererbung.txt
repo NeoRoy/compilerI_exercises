@@ -1,8 +1,0 @@
-class C2 extends C1{
-	public int a(){
-		C1 t;
-		t = this;
-		return 0;
-	}
-}
-class C1{}

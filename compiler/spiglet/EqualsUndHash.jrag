@@ -1,0 +1,55 @@
+aspect Equals {
+	public int Label.hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + ((getLabel() == null) ? 0 : getLabel().hashCode());
+		return result;
+	}
+	public boolean Label.equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		Label other = (Label) obj;
+		if (getLabel() == null) {
+			if (other.getLabel() != null)
+				return false;
+		} else if (!getLabel().equals(other.getLabel()))
+			return false;
+		return true;
+	}	
+	public TempContext Temp.getTempContext(){
+		ASTNode<?> parent = getParent();
+		while(parent != null && !(parent instanceof TempContext)){
+			parent = parent.getParent();
+		}
+		return parent == null ? null : (TempContext) parent;
+	}
+	public int Temp.hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + ((getNumber() == null) ? 0 : getNumber().hashCode());
+		result = prime * result + getTempContext().hashCode();
+		return result;
+	}
+	public boolean Temp.equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		Temp other = (Temp) obj;
+		if (getNumber() == null) {
+			if (other.getNumber() != null)
+				return false;
+		} else if (!getNumber().equals(other.getNumber())){
+			return false;
+		} else if (!getTempContext().equals(other.getTempContext())){
+			return false;
+		}
+		return true;
+	}
+}

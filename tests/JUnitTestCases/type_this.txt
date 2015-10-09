@@ -1,7 +1,0 @@
-class C1{
-	public int a(){
-		C1 t;
-		t = this;
-		return 0;
-	}
-}

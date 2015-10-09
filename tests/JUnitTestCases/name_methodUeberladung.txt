@@ -1,0 +1,9 @@
+class FehlerSammlung{
+	public int executeFunktioniert(){
+		return 0;
+	}
+
+	public int executeFunktioniert(int a){
+		return 0;
+	}
+}

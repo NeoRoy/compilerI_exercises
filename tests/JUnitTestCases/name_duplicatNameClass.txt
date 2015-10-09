@@ -1,5 +1,0 @@
-class FehlerSammlung{
-}
-
-class FehlerSammlung{
-}

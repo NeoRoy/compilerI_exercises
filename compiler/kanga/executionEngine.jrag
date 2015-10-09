@@ -1,0 +1,468 @@
+aspect Execution {
+
+  syn lazy RegEngine Program.regs() {
+  	return new RegEngine();
+  }
+  eq Program.getStmts().regs() = this.regs();
+  eq Program.getProcs().regs() = this.regs();
+  
+  inh lazy RegEngine LabeledStmt.regs();
+  inh lazy RegEngine Procedure.regs();
+  inh lazy RegEngine Stmt.regs();
+  inh lazy RegEngine Exp.regs();
+  inh lazy RegEngine SpilledArg.regs();
+
+  syn lazy Heap Program.heap() {
+  	return new Heap();
+  }
+  eq Program.getStmts().heap() = this.heap();
+  eq Program.getProcs().heap() = this.heap();
+  
+  inh lazy Heap LabeledStmt.heap();
+  inh lazy Heap Procedure.heap();
+  inh lazy Heap Stmt.heap();
+  inh lazy Heap Exp.heap();
+  inh lazy Heap SpilledArg.heap();
+
+  syn lazy java.util.List<Stack> Program.stackFrame(){
+  	return new java.util.ArrayList<Stack>();
+  }
+  eq Program.getProcs().stackFrame() = this.stackFrame();
+  inh lazy java.util.List<Stack> Procedure.stackFrame();
+  
+  syn Stack Program.addStack(){
+  	Stack s = new Stack();
+  	stackFrame().add(s);
+  	return s;
+  }
+  eq Program.getProcs().addStack() = this.addStack();
+  inh Stack Procedure.addStack();
+  
+  syn Stack Program.removeStack(){
+  	Stack s = stackFrame().remove(stackFrame().size()-1);
+  	return s;
+  }
+  eq Program.getProcs().removeStack() = this.removeStack();
+  inh Stack Procedure.removeStack();
+  
+  syn Stack Program.stack() {
+  	return stackFrame().get(stackFrame().size()-1);
+  }
+  eq Program.getStmts().stack() = this.stack();
+  eq Program.getProcs().stack() = this.stack();
+  eq Procedure.getLabel().stack() = this.stack();
+  eq Procedure.getStmts().stack() = this.stack();
+  
+  inh Stack Procedure.stack();
+  inh Stack LabeledStmt.stack();
+  inh Stack Stmt.stack();
+  inh Stack Exp.stack();
+  inh Stack SpilledArg.stack();
+
+  syn lazy java.util.Map<Label,KangaCode> Program.labelLookup() = new java.util.HashMap<Label,KangaCode>();
+  eq Program.getStmts().labelLookup() = this.labelLookup();
+  eq Program.getProcs().labelLookup() = this.labelLookup();
+  
+  inh lazy java.util.Map<Label,KangaCode> LabeledStmt.labelLookup();
+  inh lazy java.util.Map<Label,KangaCode> Procedure.labelLookup();
+  inh lazy java.util.Map<Label,KangaCode> Stmt.labelLookup();
+  inh lazy java.util.Map<Label,KangaCode> Exp.labelLookup();
+  inh lazy java.util.Map<Label,KangaCode> SpilledArg.labelLookup();
+
+  syn lazy java.util.Map<Integer,Procedure> Program.procedureLookup() = new java.util.HashMap<Integer,Procedure>();
+  eq Program.getStmts().procedureLookup() = this.procedureLookup();
+  eq Program.getProcs().procedureLookup() = this.procedureLookup();
+  
+  inh lazy java.util.Map<Integer,Procedure> LabeledStmt.procedureLookup();
+  inh lazy java.util.Map<Integer,Procedure> Procedure.procedureLookup();
+  inh lazy java.util.Map<Integer,Procedure> Stmt.procedureLookup();
+  inh lazy java.util.Map<Integer,Procedure> Exp.procedureLookup();
+  inh lazy java.util.Map<Integer,Procedure> SpilledArg.procedureLookup();
+  
+  syn lazy FirstCode Program.firstCode() = new FirstCode();
+  syn lazy FirstCode Procedure.firstCode() = new FirstCode();
+  
+  syn lazy Continuation Program.continuation() {
+  	return new Continuation();
+  }
+  eq Program.getStmts().continuation() = this.continuation();
+  eq Program.getProcs().continuation() = this.continuation();
+  
+  inh lazy Continuation LabeledStmt.continuation();
+  inh lazy Continuation Procedure.continuation();
+  inh lazy Continuation Stmt.continuation();
+  inh lazy Continuation Exp.continuation();
+  inh lazy Continuation SpilledArg.continuation();
+  
+	class RegEngine{
+		private java.util.Map<Reg, Register> regs = new java.util.HashMap<Reg, Register>();
+		
+		public void reset(){
+			regs.clear();
+		}
+		
+		public Register getRegister(Reg reg){
+			Register r = regs.get(reg);
+			if(r == null){
+				r = new Register();
+				regs.put(reg,r);
+			}
+			return r;
+		}		
+	}
+	
+	class Register{
+		int value = 0;
+		
+		public int read(){
+			return value;
+		}
+		
+		public void write(int value){
+			this.value = value;
+		}
+	}
+	
+	class Stack{
+		private int[] passArg;
+		private int[] stack;
+		
+		public Stack(){
+			stack = new int[0];	
+		}
+		
+		public void reset(){
+			for(int i = 0; i < stack.length; i++){
+				stack[i] = 0;
+			}
+			for(int i = 0; i < passArg.length; i++){
+				passArg[i] = 0;
+			}
+		}
+		
+		public void prepare(int size, int passArg){
+			stack = new int[size];
+			this.passArg = new int[passArg];
+		}
+		
+		public int read(int pos){
+			return stack[pos];
+		}
+		
+		public void write(int pos, int value){
+			stack[pos] = value;
+		}
+		
+		public int[] getPassArg(){
+			return passArg;
+		}
+		
+		public void writePassArg(int pos, int value){
+			passArg[pos-1] = value;
+		}
+	}
+	
+	class Heap{
+		public java.util.Map<Integer,HeapByte> heap = new java.util.HashMap<Integer,HeapByte>();
+		int next = 4;
+		
+		public void reset(){
+			next = 4;
+			heap.clear();
+		}
+		
+		public int allocate(int size){
+			int start = next;
+			next += size;
+			
+			for(int i = start; i < next; i++){
+				HeapByte b = new HeapByte();
+				heap.put(i,b);
+			}
+			return start;
+		}
+		
+		private HeapByte get(int pos){
+			HeapByte b = heap.get(pos);
+			if(b == null){
+				throw new IllegalArgumentException("Not yet allocated: "+pos+", next is "+next);
+			}
+			return b;
+		}
+		
+		public int read(int pos){
+			byte[] bytes =  new byte[]{get(pos).getValue(), get(pos+1).getValue(),get(pos+2).getValue(),get(pos+3).getValue()};
+			int value =  java.nio.ByteBuffer.wrap(bytes).order(java.nio.ByteOrder.LITTLE_ENDIAN).getInt();
+			return value;		
+		}
+		
+		public void write(int pos, int value){
+			HeapByte[] bytes = new HeapByte[]{get(pos), get(pos+1), get(pos+2), get(pos+3)};
+			byte[] values = java.nio.ByteBuffer.allocate(4).order(java.nio.ByteOrder.LITTLE_ENDIAN).putInt(value).array();
+			for(int i = 0; i < bytes.length; i++){
+				bytes[i].setValue(values[i]);
+			}
+		}
+		
+		private class HeapByte{
+			byte i = 0;
+			
+			public byte getValue(){
+				return i;
+			}
+			
+			public void setValue(int v){
+				i = (byte) v;
+			}	
+		}	
+	}
+	
+	class KangaCode {
+		public Stmt statement;
+		public KangaCode next;
+		
+		public void execute(){
+			KangaCode c = this;
+			while(c != null && c.statement.continuation().cont) {
+				if(c.statement.execute()){
+					c = c.next;
+				} else {
+					break;
+				}
+			}
+		} 
+	}
+	
+	class FirstCode {
+		public KangaCode first = null;
+	}
+	class Continuation{
+		public boolean cont = true;
+	}
+	
+	syn lazy int Program.prepareExecution(){
+		KangaCode last = null;
+		for(LabeledStmt l: getStmtss()){
+			KangaCode thisOne = new KangaCode();
+			thisOne.statement = l.getStmt();
+			if(last != null){
+				last.next = thisOne;
+			} else {
+				firstCode().first = thisOne;
+			}
+			if(l.getLabel() != null){
+				labelLookup().put(l.getLabel(),thisOne);
+			}
+			last = thisOne;
+		}
+		return 0;
+	}
+	
+	syn lazy int Procedure.prepareExecution(){
+		KangaCode last = null;
+		for(LabeledStmt l: getStmtss()){
+			KangaCode thisOne = new KangaCode();
+			thisOne.statement = l.getStmt();
+			if(last != null){
+				last.next = thisOne;
+			} else {
+				firstCode().first = thisOne;
+				
+			}
+			if(l.getLabel() != null){
+				labelLookup().put(l.getLabel(),thisOne);
+			}
+			last = thisOne;
+		}
+		procedureLookup().put(getLabel().getLabel().hashCode(),this);
+		return 0;
+	}	
+	
+	public void Program.execute(){
+		continuation().cont = true;
+		prepareExecution();
+		for(Procedure p : getProcss()){
+			p.prepareExecution();
+		}
+		stackFrame().clear();
+		regs().reset();
+		heap().reset();
+		addStack();
+		stack().prepare(getStackSlots(), getMaxCallArgs());
+		
+		firstCode().first.execute();
+	}
+	
+	public void Procedure.call(int[] params){
+		addStack();
+		stack().prepare(getStackSlots(), getMaxCallArgs());
+		for(int i = 4; i < getArguments(); i++){
+			int pos = i-4;
+			stack().write(pos, params[pos]);
+		}
+		firstCode().first.execute();
+		removeStack();
+	}
+	
+	public abstract boolean Stmt.execute();
+	public boolean Noop.execute(){
+		return true;
+	}
+	public boolean Err.execute(){
+		System.out.println("ERROR");
+		continuation().cont = false;
+		return false;
+	}
+	public boolean CJump.execute(){
+		Register condition = regs().getRegister(getCond());
+		if(condition.read() != 1){
+			KangaCode c = labelLookup().get(getLabel());
+			if(c == null){
+				throw new RuntimeException("Label not found" + getLabel().getLabel());
+			}
+			c.execute();
+			return false;
+		} else {
+			return true;
+		}
+	}
+	public boolean Jump.execute(){
+		KangaCode c = labelLookup().get(getLabel());
+		if(c == null){
+			throw new RuntimeException("Label not found" + getLabel().getLabel());
+		}
+		c.execute();
+		return false;
+	}
+	public boolean HStore.execute(){
+		Register adresse = regs().getRegister(getAddr());
+		Register value = regs().getRegister(getValue());
+		int pos = adresse.read() + getOffset();
+		heap().write(pos, value.read());
+		return true;
+	}
+	public boolean HLoad.execute(){
+		Register adresse = regs().getRegister(getAddr());
+		Register dest = regs().getRegister(getDest());
+		int pos = adresse.read() + getOffset();
+		dest.write(heap().read(pos));
+		return true;
+	}
+	public boolean Move.execute(){
+		Register dest = regs().getRegister(getDest());
+		dest.write(getSource().execute());
+		return true;
+	}
+	public boolean Print.execute(){
+		System.out.println(getValue().execute());
+		return true;
+	}
+	public boolean ALoad.execute(){
+		Register dest = regs().getRegister(getDest());
+		int stackPos = getValue().getNumber();
+		dest.write(stack().read(stackPos));
+		return true;
+	}
+	public boolean AStore.execute(){
+		Register value = regs().getRegister(getValue());
+		int stackPos = getDest().getNumber();
+		stack().write(stackPos,value.read());
+		return true;
+	}
+	public boolean PassArg.execute(){
+		Register value = regs().getRegister(getValue());
+		int stackPos = getNumber();
+		stack().writePassArg(stackPos,value.read());
+		return true;
+	}
+	public boolean Call.execute(){
+		int method = getName().execute();
+		Procedure p = procedureLookup().get(method);
+		if(p == null){
+			throw new RuntimeException("Label not found. Hash:" + method);
+		}
+		p.call(stack().getPassArg());
+		return true;
+	}
+	
+	
+	public abstract int Exp.execute();
+	public int HAlloc.execute(){
+		return heap().allocate(getSize().execute());
+	}
+	public int RegExp.execute(){
+		return regs().getRegister(getReg()).read();
+	}
+	public int LabelExp.execute(){
+		return getLabel().getLabel().hashCode();
+	}
+	public int IntLiteral.execute(){
+		return getInteger();
+	}
+	public int Lt.execute(){
+		int left = regs().getRegister(getLeft()).read();
+		int right = getRight().execute();
+		return left < right ? 1 : 0;
+	}
+	public int Plus.execute(){
+		int left = regs().getRegister(getLeft()).read();
+		int right = getRight().execute();
+		return left + right;
+	}
+	public int Minus.execute(){
+		int left = regs().getRegister(getLeft()).read();
+		int right = getRight().execute();
+		return left - right;
+	}
+	public int Times.execute(){
+		int left = regs().getRegister(getLeft()).read();
+		int right = getRight().execute();
+		return left * right;
+	}
+	
+	public int Reg.hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + ((getClass() == null) ? 0 : getClass().hashCode());
+		return result;
+	}
+	public boolean Reg.equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		Reg other = (Reg) obj;
+		if (getClass() == null) {
+			if (other.getClass() != null)
+				return false;
+		} else if (!getClass().equals(other.getClass()))
+			return false;
+		return true;
+	}
+	
+	
+	public int Label.hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + ((getLabel() == null) ? 0 : getLabel().hashCode());
+		return result;
+	}
+
+	public boolean Label.equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		Label other = (Label) obj;
+		if (getLabel() == null) {
+			if (other.getLabel() != null)
+				return false;
+		} else if (!getLabel().equals(other.getLabel()))
+			return false;
+		return true;
+	}
+}

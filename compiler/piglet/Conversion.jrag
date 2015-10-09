@@ -1,0 +1,228 @@
+aspect PigletToSpigletConversion{
+
+	syn spiglet.Program Program.toSpiglet(){
+		spiglet.List<spiglet.LabeledStmt> mainStatements = new spiglet.List<spiglet.LabeledStmt>();
+		tempLookup().enterScope();
+		for(LabeledStmt s : getStmtss()){
+			mainStatements.addAll(s.toSpiglet());
+		}
+		tempLookup().leaveScope();
+		tempLookup().clear();
+	    spiglet.List<spiglet.Procedure> procedures = new spiglet.List<spiglet.Procedure>();
+	    for(Procedure p : getProcss()){
+			procedures.add(p.toSpiglet());
+		}
+	    spiglet.Program spigletP = new spiglet.Program(mainStatements, procedures);
+	    return spigletP;
+	}
+	
+	public spiglet.List<spiglet.LabeledStmt> LabeledStmt.toSpiglet(){
+		spiglet.List<spiglet.LabeledStmt> code = new spiglet.List<spiglet.LabeledStmt>();
+		if(getLabel() != null){
+			code.add(new spiglet.LabeledStmt(new spiglet.Opt<spiglet.Label>(getLabel().toSpiglet()), new spiglet.Noop()));
+		}
+		if(!(getStmt() instanceof Noop)){
+			code.addAll(getStmt().toSpiglet());
+		}
+		return code;
+	}
+	
+	public spiglet.Procedure Procedure.toSpiglet(){
+		tempLookup().enterScope();
+		spiglet.Label l = getLabel().toSpiglet();
+		Integer params = getInteger();
+		
+		for(int i = 0; i < params; i++){
+			//Ordne den alten Temps 0,1,...params wieder die selben Nummern zu
+			tempLookup().getNewTemp(i);
+		}
+		
+		spiglet.List<spiglet.LabeledStmt> code = new spiglet.List<spiglet.LabeledStmt>();
+		spiglet.SExp expression = getStmtsRet().toSpiglet(code);
+		spiglet.StmtExp result = new spiglet.StmtExp(code, expression);
+		
+		tempLookup().leaveScope();
+		tempLookup().clear();
+		return new spiglet.Procedure(l, params, result);
+	}
+	
+			
+// ---------------------------------------------------------------------------------------------------------------------
+// --- STATEMENTS
+// ---------------------------------------------------------------------------------------------------------------------  
+
+	public abstract spiglet.List<spiglet.LabeledStmt> Stmt.toSpiglet();
+	
+	public spiglet.List<spiglet.LabeledStmt> Noop.toSpiglet(){
+		spiglet.List<spiglet.LabeledStmt> code = new spiglet.List<spiglet.LabeledStmt>();
+		add(code,new spiglet.Noop());
+		return code;
+	}
+	
+	public spiglet.List<spiglet.LabeledStmt> Err.toSpiglet(){
+		spiglet.List<spiglet.LabeledStmt> code = new spiglet.List<spiglet.LabeledStmt>();
+		add(code,new spiglet.Err());
+		return code;
+	}
+	
+	public spiglet.List<spiglet.LabeledStmt> CJump.toSpiglet(){
+		spiglet.List<spiglet.LabeledStmt> code = new spiglet.List<spiglet.LabeledStmt>();
+		int arbeitsTemp = tempLookup().getFreeNum();
+		tempLookup().enterScope();
+		add(code, new spiglet.Move(new spiglet.Temp(arbeitsTemp), getCond().toSpiglet(code)));
+		tempLookup().leaveScope();
+		add(code, new spiglet.CJump(new spiglet.Temp(arbeitsTemp), getLabel().toSpiglet()));
+		tempLookup().unblock(arbeitsTemp);
+		return code;
+	}
+	
+	public spiglet.List<spiglet.LabeledStmt> Jump.toSpiglet(){
+		spiglet.List<spiglet.LabeledStmt> code = new spiglet.List<spiglet.LabeledStmt>();
+		add(code,new spiglet.Jump(getLabel().toSpiglet()));
+		return code;
+	}
+	
+	public spiglet.List<spiglet.LabeledStmt> HStore.toSpiglet(){
+		spiglet.List<spiglet.LabeledStmt> code = new spiglet.List<spiglet.LabeledStmt>();
+		int adresse = tempLookup().getFreeNum();
+		int wert = tempLookup().getFreeNum();
+		tempLookup().enterScope();
+		add(code, new spiglet.Move(new spiglet.Temp(adresse), getAddr().toSpiglet(code)));
+		tempLookup().leaveScope();
+		tempLookup().enterScope();
+		add(code, new spiglet.Move(new spiglet.Temp(wert), getValue().toSpiglet(code)));
+		tempLookup().leaveScope();
+		add(code, new spiglet.HStore(new spiglet.Temp(adresse), getOffset(), new spiglet.Temp(wert)));
+		
+		tempLookup().unblock(adresse);
+		tempLookup().unblock(wert);
+		return code;
+	}
+	
+	public spiglet.List<spiglet.LabeledStmt> HLoad.toSpiglet(){
+		spiglet.List<spiglet.LabeledStmt> code = new spiglet.List<spiglet.LabeledStmt>();
+		int adresse = tempLookup().getFreeNum();
+		tempLookup().enterScope();
+		add(code, new spiglet.Move(new spiglet.Temp(adresse), getAddr().toSpiglet(code)));
+		tempLookup().leaveScope();
+		add(code, new spiglet.HLoad(getDest().toSpiglet(), new spiglet.Temp(adresse), getOffset()));
+		
+		tempLookup().unblock(adresse);
+		return code;
+	}
+	
+	public spiglet.List<spiglet.LabeledStmt> Move.toSpiglet(){
+		spiglet.List<spiglet.LabeledStmt> code = new spiglet.List<spiglet.LabeledStmt>();
+		spiglet.Temp t = getDest().toSpiglet();
+		tempLookup().enterScope();
+		add(code, new spiglet.Move(t, getSource().toSpiglet(code)));
+		tempLookup().leaveScope();
+		return code;
+	}
+	
+	public spiglet.List<spiglet.LabeledStmt> Print.toSpiglet(){
+		spiglet.List<spiglet.LabeledStmt> code = new spiglet.List<spiglet.LabeledStmt>();
+		tempLookup().enterScope();
+		add(code, new spiglet.Print(getValue().toSpiglet(code)));
+		tempLookup().leaveScope();
+		return code;
+	}
+	
+
+// ---------------------------------------------------------------------------------------------------------------------
+// --- EXPRESSIONS
+// ---------------------------------------------------------------------------------------------------------------------  
+	
+	public abstract spiglet.SExp Exp.toSpiglet(spiglet.List<spiglet.LabeledStmt> codeList);
+	
+	public spiglet.SExp StmtExp.toSpiglet(spiglet.List<spiglet.LabeledStmt> codeList){
+		List<LabeledStmt> statements = getStmtss();
+		for(LabeledStmt s : statements){
+			codeList.addAll(s.toSpiglet());
+		}
+		return getRetExp().toSpiglet(codeList);
+	}
+	
+	public spiglet.SExp Call.toSpiglet(spiglet.List<spiglet.LabeledStmt> codeList){
+		int numOfParams = getParams().getNumChild();
+		spiglet.List<spiglet.Temp> params = new spiglet.List<spiglet.Temp>();
+		int[] temps = new int[numOfParams];
+		for(int i = 0; i < numOfParams; i++){
+			Exp e = getParams().getChild(i);
+			int temp = tempLookup().getFreeNum();
+			add(codeList, new spiglet.Move(new spiglet.Temp(temp), e.toSpiglet(codeList)));
+			params.add(new spiglet.Temp(temp));
+			temps[i] = temp;
+		}
+		int result = tempLookup().getFreeNum();
+		spiglet.Exp call = new spiglet.Call(getName().toSpiglet(codeList), params);
+		add(codeList, new spiglet.Move(new spiglet.Temp(result), call));
+		
+		for(int i = 0; i < numOfParams; i++){
+			tempLookup().unblock(temps[i]);
+		}
+		return new spiglet.TempExp(new spiglet.Temp(result));
+	}
+	
+	public spiglet.SExp HAlloc.toSpiglet(spiglet.List<spiglet.LabeledStmt> codeList){
+		int result = tempLookup().getFreeNum();
+		spiglet.Exp halloc = new spiglet.HAlloc(getSize().toSpiglet(codeList));
+		add(codeList, new spiglet.Move(new spiglet.Temp(result), halloc));
+		return new spiglet.TempExp(new spiglet.Temp(result));
+	}
+	
+	public spiglet.SExp TempExp.toSpiglet(spiglet.List<spiglet.LabeledStmt> codeList){
+		return new spiglet.TempExp(getTemp().toSpiglet());
+	}
+	
+	public spiglet.SExp LabelExp.toSpiglet(spiglet.List<spiglet.LabeledStmt> codeList){
+		return new spiglet.LabelExp(getLabel().toSpiglet());
+	}
+	
+	public spiglet.SExp IntLiteral.toSpiglet(spiglet.List<spiglet.LabeledStmt> codeList){
+		return new spiglet.IntLiteral(getInteger());
+	}
+	
+// ---------------------------------------------------------------------------------------------------------------------
+// --- BINOPS
+// ---------------------------------------------------------------------------------------------------------------------  
+	
+	public spiglet.SExp Lt.toSpiglet(spiglet.List<spiglet.LabeledStmt> codeList){
+		int arbeitsTemp = tempLookup().getFreeNum();
+		add(codeList,new spiglet.Move(new spiglet.Temp(arbeitsTemp), getLeft().toSpiglet(codeList)));
+		add(codeList,new spiglet.Move(new spiglet.Temp(arbeitsTemp), new spiglet.Lt(new spiglet.Temp(arbeitsTemp), getRight().toSpiglet(codeList))));
+		return new spiglet.TempExp(new spiglet.Temp(arbeitsTemp));
+	}
+	public spiglet.SExp Plus.toSpiglet(spiglet.List<spiglet.LabeledStmt> codeList){
+		int arbeitsTemp = tempLookup().getFreeNum();
+		add(codeList,new spiglet.Move(new spiglet.Temp(arbeitsTemp), getLeft().toSpiglet(codeList)));
+		add(codeList,new spiglet.Move(new spiglet.Temp(arbeitsTemp), new spiglet.Plus(new spiglet.Temp(arbeitsTemp), getRight().toSpiglet(codeList))));
+		return new spiglet.TempExp(new spiglet.Temp(arbeitsTemp));
+	}
+	public spiglet.SExp Minus.toSpiglet(spiglet.List<spiglet.LabeledStmt> codeList){
+		int arbeitsTemp = tempLookup().getFreeNum();
+		add(codeList,new spiglet.Move(new spiglet.Temp(arbeitsTemp), getLeft().toSpiglet(codeList)));
+		add(codeList,new spiglet.Move(new spiglet.Temp(arbeitsTemp), new spiglet.Minus(new spiglet.Temp(arbeitsTemp), getRight().toSpiglet(codeList))));
+		return new spiglet.TempExp(new spiglet.Temp(arbeitsTemp));
+	}
+	public spiglet.SExp Times.toSpiglet(spiglet.List<spiglet.LabeledStmt> codeList){
+		int arbeitsTemp = tempLookup().getFreeNum();
+		add(codeList,new spiglet.Move(new spiglet.Temp(arbeitsTemp), getLeft().toSpiglet(codeList)));
+		add(codeList,new spiglet.Move(new spiglet.Temp(arbeitsTemp), new spiglet.Times(new spiglet.Temp(arbeitsTemp), getRight().toSpiglet(codeList))));
+		return new spiglet.TempExp(new spiglet.Temp(arbeitsTemp));
+	}
+	
+	
+// ---------------------------------------------------------------------------------------------------------------------
+// --- STUFF
+// ---------------------------------------------------------------------------------------------------------------------  
+		
+	public spiglet.Temp Temp.toSpiglet(){
+		int newTemp = tempLookup().getNewTemp(getNumber());
+		return new spiglet.Temp(newTemp);
+	}
+	
+	public spiglet.Label Label.toSpiglet(){
+		return new spiglet.Label(getLabel());
+	}
+}

@@ -53,8 +53,10 @@ aspect checking {
 		}
 	    for (Statement s : getStatementss()) 
 	    	s.typeAndLocalNameAnalysis();
-		Type returnType = getReturnExp().getAndCheckType();
-		if(!returnType.equals(getT())) addError("Return Type passt nicht zum definierten Typ (Zeile "+getFirstLine()+")");
+    	try{
+			Type returnType = getReturnExp().getAndCheckType();
+			if(!returnType.instanceOf(retType)) addError("Return Type passt nicht zum definierten Typ (Zeile "+getFirstLine()+")");
+	  	} catch (IllegalStateException e){};
 	  	localLookup().closeScp();
 	}
   
@@ -75,7 +77,7 @@ aspect checking {
   }
   public void Zuweisung.typeAndLocalNameAnalysis() {
   	try{
-	    VarDecl v = localLookup().lookup(getIdent());
+	    VarDecl v = getIdent().lookupVarDecl();
 		if(v == null) {
 			addError("Kann keine Variablendeklaration zu "+ getIdent().getIdent()+" finden (Zeile "+getFirstLine()+")");
 			return;
@@ -88,7 +90,7 @@ aspect checking {
   }
   public void ArrZuw.typeAndLocalNameAnalysis() {
   	try{
-	    VarDecl v = localLookup().lookup(getIdent());
+	    VarDecl v = getIdent().lookupVarDecl();
 		if(v == null) {
 			addError("Kann keine Variablendeklaration zu "+ getIdent().getIdent()+" finden (Zeile "+getFirstLine()+")");
 			return;

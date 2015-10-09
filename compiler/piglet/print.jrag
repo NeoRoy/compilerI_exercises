@@ -73,6 +73,7 @@ aspect PrettyPrint {
   	getLabel().print();
   	printer().append(" [" + getInteger().toString() +"] ");
   	getStmtsRet().print();
+  	printer().append("\n");
   }
   
   public abstract void Stmt.print();
@@ -178,6 +179,159 @@ aspect PrettyPrint {
   	printer().append(getLabel());
   }
   public void Temp.print() {
-  	printer().append("TEMP(" + getNumber().toString()+")");
+  	printer().append("TEMP " + getNumber().toString()+" ");
+  }
+  
+    public String Program.toString() {StringBuilder b = new StringBuilder();
+    b.append("MAIN\n");
+    for (LabeledStmt s : getStmtss()) b.append(s.toString());
+    b.append("\nEND\n");
+    for (Procedure p : getProcss()) b.append(p.toString());
+    return b.toString();
+  }
+
+  public String LabeledStmt.toString() {StringBuilder b = new StringBuilder();
+    b.append(indent());
+    if (hasLabel()) {
+    		b.append(getLabel().toString());
+    		b.append(" ");
+    } else {
+    }
+  	b.append(getStmt().toString());
+	return b.toString();
+  }  
+ 
+  public String Procedure.toString() {StringBuilder b = new StringBuilder();
+  	b.append(getLabel().toString());
+  	b.append(" [" + getInteger().toString() +"] ");
+  	b.append(getStmtsRet().toString());
+  	b.append("\n");
+	return b.toString();
+  }
+  
+  public abstract String Stmt.toString();
+  public String Noop.toString() {StringBuilder b = new StringBuilder();
+  	b.append("NOOP");
+	return b.toString();
+  }
+  public String Err.toString() {StringBuilder b = new StringBuilder();
+  	b.append("ERROR");
+	return b.toString();
+  }
+  public String CJump.toString() {StringBuilder b = new StringBuilder();
+  	b.append("CJUMP ");
+  	b.append(getCond().toString());
+  	b.append(" ");
+  	b.append(getLabel().toString());
+	return b.toString();
+  }
+  public String Jump.toString() {StringBuilder b = new StringBuilder();
+  	b.append("JUMP ");
+  	b.append(getLabel().toString());
+	return b.toString();
+  }
+  public String HStore.toString() {StringBuilder b = new StringBuilder();
+  	b.append("HSTORE ");
+  	b.append(getAddr().toString());
+  	b.append(" " + getOffset().toString() + " ");
+  	b.append(getValue().toString());
+	return b.toString();
+  }
+  public String HLoad.toString() {StringBuilder b = new StringBuilder();
+  	b.append("HLOAD ");
+  	b.append(getDest().toString());
+  	b.append(" ");
+  	b.append(getAddr().toString());
+  	b.append(" " + getOffset().toString());
+	return b.toString();
+  }
+  public String Move.toString() {StringBuilder b = new StringBuilder();
+  	b.append("MOVE ");
+  	b.append(getDest().toString());
+  	b.append(" ");
+  	b.append(getSource().toString());
+	return b.toString();
+  }
+  public String Print.toString() {StringBuilder b = new StringBuilder();
+  	b.append("PRINT ");
+  	b.append(getValue().toString());
+	return b.toString();
+  }
+
+  public abstract String Exp.toString();
+  public String StmtExp.toString() {StringBuilder b = new StringBuilder();
+    b.append("BEGIN\n");
+    for (LabeledStmt s : getStmtss()) b.append(s.toString());
+    b.append("\n" + indent() + PrettyPrinter.LABEL_INDENT + "RETURN ");
+    b.append(getRetExp().toString());    
+    b.append(" END ");
+	return b.toString();
+  }	 
+  public String Call.toString() {StringBuilder b = new StringBuilder();
+    b.append("CALL ");
+    b.append(getName().toString());    
+    b.append(" (");
+    if (getNumParam() > 0) {
+  	  b.append(getParam(0).toString());
+  	  for (int i = 1; i < getNumParam(); i++) {
+  	    b.append(" ");
+  	    b.append(getParam(i).toString());
+  	  }
+  	} 
+    b.append(" )");
+	return b.toString();
+  }	 
+  public String HAlloc.toString() {StringBuilder b = new StringBuilder();
+  	b.append("HALLOCATE ");
+  	b.append(getSize().toString());
+	return b.toString();
+  }
+  public String TempExp.toString() {StringBuilder b = new StringBuilder();
+  	b.append(getTemp().toString());
+	return b.toString();
+  }
+  public String LabelExp.toString() {StringBuilder b = new StringBuilder();
+  	b.append(getLabel().toString());
+	return b.toString();
+  }
+  public String Lt.toString() {StringBuilder b = new StringBuilder();
+    b.append("LT ");
+  	b.append(getLeft().toString());
+  	b.append(" ");
+  	b.append(getRight().toString());
+	return b.toString();
+  }
+  public String Plus.toString() {StringBuilder b = new StringBuilder();
+    b.append("PLUS ");
+  	b.append(getLeft().toString());
+  	b.append(" ");
+  	b.append(getRight().toString());
+	return b.toString();
+  }
+  public String Minus.toString() {StringBuilder b = new StringBuilder();
+    b.append("MINUS ");
+  	b.append(getLeft().toString());
+  	b.append(" ");
+  	b.append(getRight().toString());
+	return b.toString();
+  }
+  public String Times.toString() {StringBuilder b = new StringBuilder();
+    b.append("TIMES ");
+  	b.append(getLeft().toString());
+  	b.append(" ");
+  	b.append(getRight().toString());
+	return b.toString();
+  }
+  public String IntLiteral.toString() {StringBuilder b = new StringBuilder();
+  	b.append(getInteger().toString());
+	return b.toString();
+  } 
+  public String Label.toString() {StringBuilder b = new StringBuilder();
+  	b.append(getLabel());
+	return b.toString();
+  }
+  public String Temp.toString() {StringBuilder b = new StringBuilder();
+  	b.append("TEMP " + getNumber().toString()+" ");
+	return b.toString();
   }
 }

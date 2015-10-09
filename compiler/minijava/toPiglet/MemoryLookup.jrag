@@ -62,7 +62,9 @@ aspect MemoryLookup{
 		
 		public void blockTemp(int i, VarDecl v){
 			scopes.get(scopes.size()-1).block(i);
-			 maps.get(maps.size()-1).put(v,i);
+			if(v != null) {
+				maps.get(maps.size() - 1).put(v, i);
+			}
 		}
 	
 	
@@ -99,7 +101,7 @@ aspect MemoryLookup{
 					for(int j = nextFreeInt; j<i; j++){
 						unblockedIntegers.add(j);
 					}
-					nextFreeInt++;
+					nextFreeInt = i+1;
 				}
 			}
 		}

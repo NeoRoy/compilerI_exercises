@@ -1,0 +1,37 @@
+Program                ::= Code*;
+abstract Code;
+Beq:Code              ::= Value1:Reg Value2:Reg Label:Label;
+Jump:Code              ::= Label:Label;
+JumpReg:Code           ::= Addr:Reg;
+JumpLink:Code          ::= Addr:Reg;
+StoreWord:Code         ::= Addr:Reg <Offset:Integer> Value:Reg;
+LoadWord:Code          ::= Dest:Reg Addr:Reg <Offset:Integer>;
+LoadImediate:Code      ::= Dest:Reg <Constant:Integer>;
+LoadAdress:Code        ::= Dest:Reg Value:Value;
+Add:Code               ::= Dest:Reg Left:Reg Right:Reg;
+AddImmediate:Code      ::= Dest:Reg Left:Reg <Constant:Integer>;
+Sub:Code               ::= Dest:Reg Left:Reg Right:Reg;
+Mult:Code              ::= Dest:Reg Left:Reg Right:Reg;
+SetLessThan:Code       ::= Dest:Reg Left:Reg Right:Reg;
+Move:Code              ::= Dest:Reg Value:Value;
+
+Syscall:Code;
+
+abstract Value;
+
+abstract Reg:Value;
+A0:Reg; A1:Reg; A2:Reg; A3:Reg;
+T0:Reg; T1:Reg; T2:Reg; T3:Reg; T4:Reg; T5:Reg; T6:Reg; T7:Reg; T8:Reg; T9:Reg;
+S0:Reg; S1:Reg; S2:Reg; S3:Reg; S4:Reg; S5:Reg; S6:Reg; S7:Reg;
+GP:Reg; SP:Reg; FP:Reg;
+V0:Reg; V1:Reg;
+RA:Reg;
+Zero:Reg;
+
+LabelValue:Value               ::= Label;
+NewLine:Value;
+ErrorLine:Value;
+LabelCode:Code                 ::= Label;
+
+Label                   ::= <Label>;
+

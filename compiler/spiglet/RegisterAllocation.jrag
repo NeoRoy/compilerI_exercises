@@ -1,0 +1,164 @@
+aspect RegisterAllocation {
+
+	syn lazy NextSpilling Program.spilling() {
+  		return new NextSpilling();
+  	}
+  	syn lazy NextSpilling Procedure.spilling() {
+  		return new NextSpilling();
+  	}
+	  eq Program.getStmts().spilling() = this.spilling();
+	  eq Procedure.getLabel().spilling() = this.spilling();
+	  eq Procedure.getStmtsRet().spilling() = this.spilling();
+	  
+	  inh lazy NextSpilling LabeledStmt.spilling();
+	  inh lazy NextSpilling Stmt.spilling();
+	  inh lazy NextSpilling StmtExp.spilling();
+	  inh lazy NextSpilling Exp.spilling();
+	  inh lazy NextSpilling Label.spilling();
+	  inh lazy NextSpilling Temp.spilling();
+
+	class NextSpilling{
+		private int next = 0;
+	
+		public int getNext(){
+			return next++;
+		}
+		
+		public int getNumber(){
+			return next;
+		}
+	}
+	
+	
+	syn lazy TempToRegister Program.registerInfo() {
+		LivenessAnalyse la = liveness();
+		Graph<Temp> g = graph(la, numOfReg());
+		
+  		return new TempToRegister(g.getColorMap());
+  	}
+	  eq Program.getStmts().registerInfo() = this.registerInfo();
+	  eq Program.getProcs().registerInfo() = this.registerInfo();
+	  
+	  inh lazy TempToRegister LabeledStmt.registerInfo();
+	  inh lazy TempToRegister Procedure.registerInfo();
+	  inh lazy TempToRegister Stmt.registerInfo();
+	  inh lazy TempToRegister StmtExp.registerInfo();
+	  inh lazy TempToRegister Exp.registerInfo();
+	  inh lazy TempToRegister Label.registerInfo();
+	  inh lazy TempToRegister Temp.registerInfo();
+	
+	class TempToRegister{
+		private java.util.Map<Temp,TempInfo> infos = new java.util.HashMap<Temp,TempInfo>();
+		private java.util.Set<Temp> loadedTemps = new java.util.HashSet<Temp>();
+		
+		public TempToRegister(java.util.Map<Temp, ColorInformation<Temp>> info){
+			for(java.util.Map.Entry<Temp, ColorInformation<Temp>> entry : info.entrySet()){
+				Temp t = entry.getKey();
+				ColorInformation<Temp> ci = entry.getValue();
+				TempInfo ti = new TempInfo(t, ci.getColor());
+				ti.addSpilling(ci.getSpillingInfo());
+				infos.put(t,ti);
+			} 
+		}
+		
+		public java.util.Set<Temp> getLoaded(){
+			return loadedTemps;
+		}
+		
+		public void resetLoaded(){
+			loadedTemps.clear();
+		}
+		
+		public int spill(Temp t){
+			TempInfo i = infos.get(t);
+			loadedTemps.remove(t);
+			i.spill();
+			t.spillTracker().spill(t);
+			return i.getSpillingField();
+		}
+		
+		public boolean isSpilled(Temp t){
+			return infos.get(t).isSpilled();
+		}
+		
+		public int getRegister(Temp t){
+			return infos.get(t).getColor();
+		}
+		
+		public int getSpillNum(Temp t){
+			TempInfo i = infos.get(t);
+			return i == null ? -1 : i.getSpillingField();
+		}
+		
+		public Temp load(Temp t){
+			TempInfo i = infos.get(t);
+			i.load();
+			loadedTemps.add(t);
+			t.spillTracker().load(t);
+			for(Temp loaded: i.getSpillingInfo()){
+				TempInfo loadedInfo = infos.get(loaded);
+				if(!loadedInfo.isSpilled()){
+					spill(loaded);
+					return loaded;
+				}
+			}
+			return null;
+		}
+		
+		private class TempInfo{
+			private int color;
+			private boolean spilled = true;
+			private int spillingField = -1;
+			private java.util.Set<Temp> spillingInfo = new java.util.HashSet<Temp>();
+			private Temp t;
+			
+			public TempInfo(Temp t, int color){
+				this.color = color;
+				this.t = t;
+			}
+			
+			public int getColor(){
+				return color;
+			}
+			
+			public void addSpilling(Temp n){
+				spillingInfo.add(n);
+			}
+			
+			public void addSpilling(java.util.Set<Temp> n){
+				spillingInfo.addAll(n);
+			}
+			
+			public java.util.Set<Temp> getSpillingInfo(){
+				return spillingInfo;
+			}
+			
+			public void load(){
+				spilled = false;
+			}
+			
+			public void spill(){
+				spilled = true;
+			}
+			
+			public boolean isSpilled(){
+				return spilled;
+			}
+			
+			public void setSpillingField(int i){
+				spillingField = i;
+			}
+			
+			public int getSpillingField(){
+				if(spillingField == -1){
+					spillingField = t.spilling().getNext();
+				}
+				return spillingField;
+			}
+			
+			public Temp getTemp(){
+				return t;
+			}
+		}
+	}
+}

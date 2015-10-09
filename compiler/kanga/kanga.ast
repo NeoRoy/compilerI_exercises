@@ -1,0 +1,42 @@
+Program			::= <Arguments:Integer> <StackSlots:Integer> <MaxCallArgs:Integer> Stmts:LabeledStmt* Procs:Procedure*;
+
+LabeledStmt		::= [Label] Stmt:Stmt;
+Procedure		::= Label <Arguments:Integer> <StackSlots:Integer> <MaxCallArgs:Integer> Stmts:LabeledStmt*;
+abstract Stmt;
+Noop:Stmt;
+Err:Stmt;
+CJump:Stmt		::= Cond:Reg Label:Label;
+Jump:Stmt		::= Label:Label;
+HStore:Stmt		::=	Addr:Reg <Offset:Integer> Value:Reg;
+HLoad:Stmt		::=	Dest:Reg Addr:Reg <Offset:Integer>;
+Move:Stmt		::= Dest:Reg Source:Exp;
+Print:Stmt		::= Value:SExp;
+ALoad:Stmt		::= Dest:Reg Value:SpilledArg;
+AStore:Stmt		::= Dest:SpilledArg Value:Reg;
+PassArg:Stmt	::= <Number:Integer> Value:Reg;
+Call:Stmt	    ::= Name:SExp;
+
+abstract Exp;
+HAlloc:Exp	 	::= Size:SExp;
+
+         
+abstract SExp:Exp;
+RegExp:SExp		::= Reg:Reg;
+LabelExp:SExp 	::= Label:Label;
+IntLiteral:SExp ::= <Integer:Integer>;
+
+abstract Binop:Exp  ::=	Left:Reg Right:SExp;
+Lt:Binop;
+Plus:Binop;
+Minus:Binop;
+Times:Binop;
+
+SpilledArg		::= <Number:Integer>;
+
+abstract Reg;
+A0:Reg; A1:Reg; A2:Reg; A3:Reg;
+T0:Reg; T1:Reg; T2:Reg; T3:Reg; T4:Reg; T5:Reg; T6:Reg; T7:Reg; T8:Reg; T9:Reg;
+S0:Reg; S1:Reg; S2:Reg; S3:Reg; S4:Reg; S5:Reg; S6:Reg; S7:Reg;
+V0:Reg; V1:Reg;
+
+Label  			::= <Label>;

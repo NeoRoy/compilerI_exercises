@@ -1,3 +1,5 @@
+import java.lang.Integer;
+
 aspect ClassGeneration{
 	syn lazy ClassGenerator Program.classGen() {
 		return new ClassGenerator();
@@ -15,19 +17,37 @@ aspect ClassGeneration{
 	
 	public class ClassGenerator{
 		private java.util.Map<ClassDecl,ClassInfos> varPositions = new java.util.HashMap<ClassDecl,ClassInfos>();
+		private java.util.Map<Integer,ClassDecl> classDeclPos = new java.util.HashMap<Integer, ClassDecl>();
 		private ClassDecl currentClass = null;
+		private int nextPos = 0;
 	
-		public void build(ClassDecl c){
+		public void build(ClassDecl c) {
 			ClassInfos infos = new ClassInfos();
-			varPositions.put(c,infos);
-			java.util.Map<VarDecl,Integer> varInfos = new java.util.HashMap<VarDecl,Integer>();
+			int position = nextPos++;
+			classDeclPos.put(position,c);
+			infos.position = position;
+			varPositions.put(c, infos);
+			java.util.Map<VarDecl, Integer> varInfos = new java.util.HashMap<VarDecl, Integer>();
 			infos.varPos = varInfos;
-			
-			java.util.Map<MethodDecl,Integer> methodPos = new java.util.HashMap<MethodDecl,Integer>();
+
+			java.util.Map<MethodDecl, Integer> methodPos = new java.util.HashMap<MethodDecl, Integer>();
 			infos.methodPos = methodPos;
 
 
-			buildLocalInfos(infos,c);
+			buildLocalInfos(infos, c);
+		}
+
+		public int size(){
+			return varPositions.size();
+		}
+
+		public ClassDecl getClassAtPos(int p){
+			return classDeclPos.get(p);
+		}
+		
+
+		public int getClassOffset(ClassDecl c){
+			return varPositions.get(c).position;
 		}
 		
 		private void buildLocalInfos(ClassInfos i, ClassDecl c){
@@ -37,8 +57,8 @@ aspect ClassGeneration{
 				superTypes.add(0,h);
 				h = h.superClass();
 			}
-			buildLocalVars(i.varPos,superTypes);
-			builLocalMethods(i.methodPos,superTypes);
+			buildLocalVars(i.varPos, superTypes);
+			buildMethods(i.methodPos, superTypes);
 		}
 		
 		private void buildLocalVars(java.util.Map<VarDecl,Integer> infos, java.util.List<ClassDecl> superTypes){
@@ -53,15 +73,29 @@ aspect ClassGeneration{
 			}
 		}
 		
-		private void builLocalMethods(java.util.Map<MethodDecl,Integer> infos, java.util.List<ClassDecl> superTypes){
-			//TODO Methodenueberschreiben fehlt...	
+		private void buildMethods(java.util.Map<MethodDecl,Integer> infos, java.util.List<ClassDecl> superTypes){
 			int pos = 0;
 			ClassDecl h;
 			for(int i = 0; i < superTypes.size(); i++){
 				h = superTypes.get(i);
 				for(MethodDecl m: h.getMethodss()){
-					infos.put(m,pos*4);
-					pos++;
+					int foundPos = -1;
+					MethodDecl oldDecl = null;
+					for(java.util.Map.Entry<MethodDecl, Integer> entry: infos.entrySet())
+					{
+						if(entry.getKey().getIdent().getIdent().equals(m.getIdent().getIdent())){
+							foundPos = entry.getValue();
+							oldDecl = entry.getKey();
+							break;
+						}
+					}
+					if(foundPos != -1){
+						infos.remove(oldDecl);
+						infos.put(m,foundPos);
+					} else {
+						infos.put(m,pos);
+						pos++;
+					}
 				}
 			}
 		}
@@ -82,7 +116,23 @@ aspect ClassGeneration{
 			return varPositions.get(currentClass).methodPos.get(m);
 		}
 		
+		public int lookup(ClassDecl c, VarDecl v){
+			return varPositions.get(c).varPos.get(v);
+		}
+	
+		public int lookup(ClassDecl c, MethodDecl m){
+			return varPositions.get(c).methodPos.get(m);
+		}
+		
+		public int getObjectSize(ClassDecl c){
+			return varPositions.get(c).varPos.size();
+		}
+
+		public java.util.Set<java.util.Map.Entry<MethodDecl,Integer>> methods(ClassDecl c){
+			return varPositions.get(c).methodPos.entrySet();
+		}
 		private class ClassInfos{
+			int position;
 			java.util.Map<VarDecl,Integer> varPos;
 			java.util.Map<MethodDecl,Integer> methodPos;
 		}
