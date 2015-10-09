@@ -47,6 +47,8 @@ aspect LabelGeneration{
 		public abstract String value();
 	}
 	
+	public class NoErrorLabel extends LabelType {public String value (){return "NO_ERROR";}}
+	public class ErrorLabel extends LabelType {public String value (){return "ERROR";}}
 	public class IfLabel extends LabelType {public String value (){return "If_If";}}
 	public class ThenLabel extends LabelType {public String value (){return "If_Then";}}
 	public class ElseLabel extends LabelType {public String value (){return "If_Else";}}

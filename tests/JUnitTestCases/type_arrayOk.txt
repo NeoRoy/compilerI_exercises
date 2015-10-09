@@ -1,9 +1,0 @@
-class FehlerSammlung{
-	int c;
-	int[] d;
-	
-	public int arrayZugriff(){
-		d[c] = c;
-		return 0;
-	}
-}

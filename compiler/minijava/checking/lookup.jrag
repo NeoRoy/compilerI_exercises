@@ -8,18 +8,21 @@ aspect lookup {
 	}
   	eq Program.getMain().lookup() = this.lookup();
 	eq Program.getDecls().lookup() = this.lookup();
+	eq Decl.getIdent().lookup() = this.lookup();
   	eq Program.getMain().localLookup() = this.localLookup();
 	eq Program.getDecls().localLookup() = this.localLookup();
+	eq Decl.getIdent().localLookup() = this.localLookup();
 	
 	inh lazy Lookup Decl.lookup();
 	inh lazy Lookup Type.lookup();
 	inh lazy Lookup Statement.lookup();
 	inh lazy Lookup Exp.lookup();
+	inh lazy Lookup Id.lookup();
 	inh lazy LocalLookup Decl.localLookup();
 	inh lazy LocalLookup Type.localLookup();
 	inh lazy LocalLookup Statement.localLookup();
 	inh lazy LocalLookup Exp.localLookup();
-	
+	inh lazy LocalLookup Id.localLookup();
 	
 	public void Program.buildLookup() {
     	getMain().buildLookup();
@@ -30,7 +33,12 @@ aspect lookup {
 		addError(lookup().enter(this));
 	}
 	public void ClassDecl.buildLookup() {
+		lookup().incNL(this);
 		addError(lookup().enter(this));
+		for(VarDecl v: getVariabless()){
+			addError(lookup().enter(v));
+		}
+		lookup().decNL();
 	}
   	
   	

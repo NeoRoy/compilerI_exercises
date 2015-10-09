@@ -1,0 +1,7 @@
+aspect Conv{
+	public void List.addAll(List<T> values){
+		for(T o : values){
+			add(o);
+		}
+	}
+}

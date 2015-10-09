@@ -1,0 +1,18 @@
+aspect Conv{
+	public void List.addAll(List<T> values){
+		for(T o : values){
+			add(o);
+		}
+	}
+	
+  	protected void Code.add(spiglet.List<spiglet.LabeledStmt> list, spiglet.Stmt s){
+  		list.add(new spiglet.LabeledStmt(new spiglet.Opt<spiglet.Label>(),s));
+  	}
+  	protected void Code.add(spiglet.List<spiglet.LabeledStmt> list, spiglet.LabeledStmt s){
+  		list.add(s);
+  	}
+
+	public Exp Exp.invers(){
+		return new Minus(new IntLiteral(1),this);
+	}
+}

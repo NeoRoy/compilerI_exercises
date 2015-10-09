@@ -1,0 +1,174 @@
+aspect TempAspect{
+	
+	syn lazy TempLookup Program.tempLookup() {
+		return new TidyTempLookup();
+	}
+	
+	eq Program.getStmts().tempLookup() = this.tempLookup();
+	eq Program.getProcs().tempLookup() = this.tempLookup();
+	  
+	inh lazy TempLookup LabeledStmt.tempLookup();
+	inh lazy TempLookup Procedure.tempLookup();
+	inh lazy TempLookup Stmt.tempLookup();
+	inh lazy TempLookup Exp.tempLookup();
+	inh lazy TempLookup Temp.tempLookup();
+	inh lazy TempLookup Label.tempLookup();
+	
+	public interface TempLookup{
+		public void leaveScope();
+		public void enterScope();
+		public void clear();
+		public int getNewTemp(int oldTemp);
+		public int getFreeNum();
+		public void unblock(int num);
+		public void block(int value);
+	}
+	
+	public class UntidyTempLookup implements TempLookup{
+		
+		private int nextFreeNum = 0;
+		private java.util.List<Integer> freeInts = new java.util.ArrayList<Integer>();
+		private java.util.Map<Integer,Integer> exchangeMap = new java.util.HashMap<Integer,Integer>();
+		
+		@Override
+		public void enterScope(){}
+		
+		@Override
+		public void leaveScope(){}
+		
+		@Override
+		public void clear(){
+			freeInts.clear();
+			exchangeMap.clear();
+			nextFreeNum = 0;
+		}
+		
+		@Override
+		public int getNewTemp(int oldTemp){
+			Integer result = exchangeMap.get(oldTemp);
+			if(result == null){
+				result = getFreeNum();
+				exchangeMap.put(oldTemp,result);
+			}
+			return result;
+		}
+		
+		@Override
+		public int getFreeNum(){
+			return freeInts.isEmpty()? nextFreeNum++ : freeInts.remove(0);
+		}
+		
+		@Override
+		public void unblock(int num){
+		}
+		
+		@Override
+		public void block(int value){
+			if(value >= nextFreeNum){
+				for(int i = nextFreeNum ; i < value; i++){
+					freeInts.add(i);
+				}
+				nextFreeNum = value +1;
+			} else {
+				freeInts.remove(new Integer(value));
+			}
+		}
+	}
+	
+	public class TidyTempLookup implements TempLookup{
+	
+		private static class Scope {
+			private int nextFreeNum = 0;
+			private java.util.List<Integer> freeInts = new java.util.ArrayList<Integer>();
+			private java.util.Map<Integer,Integer> exchangeMap = new java.util.HashMap<Integer,Integer>();
+			
+			public Scope(Scope previous){
+				if (previous != null){
+					nextFreeNum = previous.getNextFreeNum();
+					freeInts.addAll(previous.getFreeInts());
+					for(java.util.Map.Entry<Integer,Integer> e : previous.getExchangeMap().entrySet()){
+						exchangeMap.put(e.getKey(),e.getValue());
+					}
+				}
+			}
+			
+			public int getNextFreeNum(){
+				return nextFreeNum;
+			}
+			public void setNextFreeNum(int num){
+				nextFreeNum = num;
+			}
+			public java.util.List<Integer> getFreeInts(){
+				return freeInts;
+			}
+			public java.util.Map<Integer,Integer> getExchangeMap(){
+				return exchangeMap;
+			}
+			
+			public int getNewTemp(int oldTemp){
+				Integer result = exchangeMap.get(oldTemp);
+				if(result == null){
+					result = getFreeNum();
+					exchangeMap.put(oldTemp,result);
+				}
+				return result;
+			}
+			
+			public int getFreeNum(){
+				return freeInts.isEmpty()? nextFreeNum++ : freeInts.remove(0);
+			}
+			
+			public void block(int value){
+				if(value >= nextFreeNum){
+					for(int i = nextFreeNum ; i < value; i++){
+						freeInts.add(i);
+					}
+					nextFreeNum = value +1;
+				} else {
+					freeInts.remove(new Integer(value));
+				}
+			}
+		}
+		
+		private java.util.List<Scope> scopes = new java.util.ArrayList<Scope>();
+		
+		private Scope getCurrentScope(){
+			return scopes.isEmpty()? null : scopes.get(scopes.size() - 1);
+		}
+		
+		@Override
+		public void enterScope(){
+			scopes.add(new Scope(getCurrentScope()));
+		}
+		
+		@Override
+		public void leaveScope(){
+			scopes.remove(scopes.size()-1);
+		}
+		
+		@Override
+		public void clear(){
+			scopes.clear();
+		}
+		
+		@Override
+		public int getNewTemp(int oldTemp){
+			return getCurrentScope().getNewTemp(oldTemp);
+		}
+		
+		@Override
+		public int getFreeNum(){
+			return getCurrentScope().getFreeNum();
+		}
+		
+		@Override
+		public void unblock(int num){
+			getCurrentScope().getFreeInts().add(num);
+		}
+		
+		@Override
+		public void block(int value){
+			getCurrentScope().block(value);
+		}
+	}
+}

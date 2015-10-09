@@ -4,8 +4,8 @@ aspect constants {
 		private static final String METHOD = "METHOD";
 		private static final String VARIABLE = "VARIABLE";
 		
-		private static final String CONST_SEPERATOR = ":";
-		public static final String ELEMENT_SEPERATOR = ".";
+		private static final String CONST_SEPERATOR = "_";
+		public static final String ELEMENT_SEPERATOR = "_";
 		
 		public static String getClassName(Decl d){
 			return getClassName(d.getIdent().getIdent());

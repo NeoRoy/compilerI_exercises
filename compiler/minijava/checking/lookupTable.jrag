@@ -35,6 +35,14 @@ aspect lookupTable{
 		public ClassDecl lookupClass(Id i){
 			return lookupClass(i.getIdent());
 		}
+		public VarDecl lookupVar(Type t, Id i){
+			VarDecl result = null;
+			while(t != null && result == null){
+				result = (VarDecl) lookupTable.get(new VarLookupIdentification(lookupClass(t), i.getIdent()));
+				t = t.supertype();
+			}
+			return result;
+		}
 		
 		public Decl lookupMethod(ClassDecl nesting, String name, List<Type> params){
 			try{
@@ -77,6 +85,8 @@ aspect lookupTable{
 				return new ClassLookupIdentification(decl);
 			} else if(decl instanceof MethodDecl){
 				return new MethodLookupIdentification(prefix,(MethodDecl) decl);
+			} else if(decl instanceof VarDecl){
+				return new VarLookupIdentification(prefix,(VarDecl) decl);
 			} else {
 				return null;
 			}
@@ -127,26 +137,17 @@ aspect lookupTable{
 	}
 	
 	public class MethodLookupIdentification extends LookupIdentification{
-		java.util.List<Type> parameter;
 		String name;
 		ClassDecl nesting;
 		
 		public MethodLookupIdentification(ClassDecl nesting, MethodDecl decl){
 			this.nesting = nesting;
-			parameter = new java.util.ArrayList<Type>();
-			for(VarDecl p: decl.getParamss()){
-				parameter.add(p.getT());
-			}
 			this.name = CharConsts.getClassName(nesting) + CharConsts.ELEMENT_SEPERATOR + CharConsts.getMethodName(decl);
 		}
 		
 		public MethodLookupIdentification(ClassDecl nesting, String name, List<Type> params){
 			this.name = CharConsts.getClassName(nesting) + CharConsts.ELEMENT_SEPERATOR + CharConsts.getMethodName(name);
 			this.nesting = nesting;
-			parameter = new java.util.ArrayList();
-			for(Type t: params){
-				parameter.add(t);
-			}
 		}
 
 
@@ -154,9 +155,6 @@ aspect lookupTable{
 		public String getName(){
 			StringBuilder b = new StringBuilder();
 			b.append(name).append("(");
-			for(Type t: parameter){
-				b.append(t.typeValue()).append(",");
-			}
 			b.append(")");
 			return b.toString();
 		}
@@ -165,12 +163,6 @@ aspect lookupTable{
 		public int hashCode() {
 			final int prime = 31;
 			int result = 1;
-			for (Type type : parameter) {
-				while(type.supertype() != null){
-					type = type.supertype();
-				}
-				result = prime * result + type.typeValue().hashCode();
-			}
 			result = prime * result + ((name == null) ? 0 : name.hashCode());
 			return result;
 		}
@@ -189,41 +181,63 @@ aspect lookupTable{
 					return false;
 			} else if (!name.equals(other.name))
 				return false;
-			if(parameter.size() != other.parameter.size())
+			if (nesting == null) {
+				if (other.nesting != null)
+					return false;
+			} else if (!nesting.equals(other.nesting))
+				return false;
+			return true;
+		}
+	}
+	
+	public class VarLookupIdentification extends LookupIdentification{
+		String name;
+		ClassDecl nesting;
+		
+		public VarLookupIdentification(ClassDecl nesting, VarDecl decl){
+			this.nesting = nesting;
+			this.name = decl.getIdent().getIdent();
+		}
+		
+		public VarLookupIdentification(ClassDecl nesting, String name){
+			this.name = name;
+			this.nesting = nesting;
+		}
+
+
+		@Override
+		public String getName(){
+			return name;
+		}
+		
+		@Override
+		public int hashCode() {
+			final int prime = 31;
+			int result = 1;
+			result = prime * result + ((name == null) ? 0 : name.hashCode());
+			return result;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj)
+				return true;
+			if (obj == null)
+				return false;
+			if (getClass() != obj.getClass())
+				return false;
+			VarLookupIdentification other = (VarLookupIdentification) obj;
+			if (name == null) {
+				if (other.name != null)
+					return false;
+			} else if (!name.equals(other.name))
 				return false;
 			if (nesting == null) {
 				if (other.nesting != null)
 					return false;
 			} else if (!nesting.equals(other.nesting))
 				return false;
-			boolean oInstanceOfT = false;
-			boolean tInstanceOfO = false;
-			boolean different = false;
-			for (int i = 0; i < parameter.size() && !different; i++) {
-				Type t = parameter.get(i);
-				Type o = parameter.get(i);
-				
-				if(!t.equals(o)){
-					if(t.instanceOf(o)){
-						tInstanceOfO = true;
-					} else if(o.instanceOf(t)){
-						oInstanceOfT = true;
-					} else {
-						different = true;
-					}
-				}
-			}
-			if(different){
-				return false;	//Eindeutig unterscheidbar
-			} else {
-				if(oInstanceOfT && tInstanceOfO){
-					return true;	//Nicht eindeutig unterscheidbar
-				} else if(oInstanceOfT || tInstanceOfO){
-					return false;	//Man kann immer die richtige auswählen
-				} else {
-					return true;	//Identisch
-				}
-			}
+			return true;
 		}
 	}
 }

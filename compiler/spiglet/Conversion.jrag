@@ -1,0 +1,316 @@
+aspect PigletToSpigletConversion{
+
+	syn int Program.numOfReg(){
+		return 10;
+	}
+	
+	public boolean Code.isLastStatementInBlock(LabeledStmt stmt){
+		if(stmt == null){
+			return false;
+		}
+		Stmt s = stmt.getStmt();
+		if(stmt.getLabel() != null){
+			return true;
+		} else if(s instanceof Jump){
+			return true;
+		} else if(s instanceof CJump){
+			return true;
+		} else {
+			return false;
+		}
+	}
+
+	syn kanga.Program Program.toKanga(){
+		kanga.List<kanga.LabeledStmt> mainStatements = new kanga.List<kanga.LabeledStmt>();
+		List<LabeledStmt> stmts = getStmtss();
+		for(int i = 0; i < stmts.numChildren(); i++){
+			LabeledStmt thisStmt = stmts.getChild(i);
+			LabeledStmt nextStmt = i+1 < stmts.numChildren() ? stmts.getChild(i+1) : null;
+			mainStatements.addAll(thisStmt.toKanga());
+			if(isLastStatementInBlock(nextStmt)){
+				mainStatements.addAll(spillAll());
+			}
+		}
+	    kanga.List<kanga.Procedure> procedures = new kanga.List<kanga.Procedure>();
+	    for(Procedure p : getProcss()){
+			procedures.add(p.toKanga());
+		}
+		
+	    kanga.Program kangaP = new kanga.Program(0,neededSpills(),maxCallArgs(),mainStatements, procedures);
+	    return kangaP;
+	}
+	
+	public kanga.List<kanga.LabeledStmt> LabeledStmt.toKanga(){
+		kanga.List<kanga.LabeledStmt> code = new kanga.List<kanga.LabeledStmt>();
+		if(getLabel() != null){
+			code.add(new kanga.LabeledStmt(new kanga.Opt<kanga.Label>(getLabel().toKanga()), new kanga.Noop()));
+		}
+		if(!(getStmt() instanceof Noop)){
+			code.addAll(getStmt().toKanga());
+		}
+		return code;
+	}
+	
+	public kanga.Procedure Procedure.toKanga(){
+		registerInfo().resetLoaded();
+		kanga.Label label = getLabel().toKanga();
+		kanga.List<kanga.LabeledStmt> mainStatements = new kanga.List<kanga.LabeledStmt>();
+		
+		for(int i = 4; i < getParams(); i++){
+			Temp t = new Temp(i);
+			t.setParent(this);
+			registerInfo().getSpillNum(t);
+		}
+		for(int i = 0; i < getParams() && i < 4; i++){
+			Temp t = new Temp(i);
+			t.setParent(this);
+			int spill = registerInfo().getSpillNum(t);
+			if(spill >= 0){
+				add(mainStatements, new kanga.AStore(new kanga.SpilledArg(spill),kanga.RegMapper.aReg(i))); 
+			}
+		}
+		
+		mainStatements.addAll(getStmtsRet().toKanga());
+		
+        int stackSlots = neededSpills() + (maxCallArgs() > 4 ? maxCallArgs() - 4 : 0);
+	    kanga.Procedure kangaP = new kanga.Procedure(label,getParams(),stackSlots ,maxCallArgs(),mainStatements);
+	    return kangaP;
+	}
+	
+	public kanga.List<kanga.LabeledStmt> StmtExp.toKanga(){
+		kanga.List<kanga.LabeledStmt> mainStatements = new kanga.List<kanga.LabeledStmt>();
+		List<LabeledStmt> stmts = getStmtss();
+		for(int i = 0; i < stmts.numChildren(); i++){
+			LabeledStmt thisStmt = stmts.getChild(i);
+			LabeledStmt nextStmt = i+1 < stmts.numChildren() ? stmts.getChild(i+1) : null;
+			mainStatements.addAll(thisStmt.toKanga());
+			if(isLastStatementInBlock(nextStmt)){
+				mainStatements.addAll(spillAll());
+			}
+		}
+		add(mainStatements, new kanga.Move(new kanga.V0(), getRetExp().toKanga(mainStatements)));
+		return mainStatements;
+	}
+	
+// ---------------------------------------------------------------------------------------------------------------------
+// --- STATEMENTS
+// ---------------------------------------------------------------------------------------------------------------------  
+
+	public abstract kanga.List<kanga.LabeledStmt> Stmt.toKanga();
+	public kanga.List<kanga.LabeledStmt> Noop.toKanga(){
+		kanga.List<kanga.LabeledStmt> mainStatements = new kanga.List<kanga.LabeledStmt>();
+		add(mainStatements, new kanga.Noop());
+		return mainStatements;
+	}
+	
+	public kanga.List<kanga.LabeledStmt> Err.toKanga(){
+		kanga.List<kanga.LabeledStmt> mainStatements = new kanga.List<kanga.LabeledStmt>();
+		add(mainStatements, new kanga.Err());
+		return mainStatements;
+	}	
+	
+	public kanga.List<kanga.LabeledStmt> CJump.toKanga(){
+		kanga.List<kanga.LabeledStmt> mainStatements = new kanga.List<kanga.LabeledStmt>();
+		kanga.Reg reg = getCond().toKanga(mainStatements,true);
+		kanga.Label label = getLabel().toKanga();
+		add(mainStatements, new kanga.CJump(reg, label));
+		return mainStatements;
+	}	
+	
+	public kanga.List<kanga.LabeledStmt> Jump.toKanga(){
+		kanga.List<kanga.LabeledStmt> mainStatements = new kanga.List<kanga.LabeledStmt>();
+		kanga.Label label = getLabel().toKanga();
+		add(mainStatements, new kanga.Jump(label));
+		return mainStatements;
+	}	
+	
+	public kanga.List<kanga.LabeledStmt> HStore.toKanga(){
+		kanga.List<kanga.LabeledStmt> mainStatements = new kanga.List<kanga.LabeledStmt>();
+		int regNumAddr = registerInfo().getRegister(getAddr());
+		int regNumValue = registerInfo().getRegister(getValue());
+		kanga.Reg addr;
+		kanga.Reg value;
+		addr = getAddr().toKanga(mainStatements,true);
+		if (regNumAddr == regNumValue) { //Collision; Coloring fehlgeschlagen
+			add(mainStatements, new kanga.Move(new kanga.S7(), new kanga.RegExp(addr)));
+			addr = new kanga.S7();
+		}
+		value = getValue().toKanga(mainStatements,true);
+		
+		int offset = getOffset();
+		add(mainStatements, new kanga.HStore(addr,offset,value));
+		return mainStatements;
+	}	
+	
+	public kanga.List<kanga.LabeledStmt> HLoad.toKanga(){
+		kanga.List<kanga.LabeledStmt> mainStatements = new kanga.List<kanga.LabeledStmt>();
+		int regNumAddr = registerInfo().getRegister(getAddr());
+		int regNumValue = registerInfo().getRegister(getDest());
+		kanga.Reg addr;
+		kanga.Reg dest;
+		addr = getAddr().toKanga(mainStatements,true);
+		if (regNumAddr == regNumValue) { //Collision; Coloring fehlgeschlagen
+			add(mainStatements, new kanga.Move(new kanga.S7(), new kanga.RegExp(addr)));
+			addr = new kanga.S7();
+		}
+		dest = getDest().toKanga(mainStatements,true);
+		int offset = getOffset();
+		
+		add(mainStatements, new kanga.HLoad(dest,addr,offset));
+		return mainStatements;
+	}	
+	
+	public kanga.List<kanga.LabeledStmt> Move.toKanga(){
+		kanga.List<kanga.LabeledStmt> mainStatements = new kanga.List<kanga.LabeledStmt>();
+		kanga.Exp source = getSource().toKanga(mainStatements);
+		kanga.Reg dest = getDest().toKanga(mainStatements,false);
+		
+		add(mainStatements, new kanga.Move(dest,source));
+		return mainStatements;
+	}	
+	
+	public kanga.List<kanga.LabeledStmt> Print.toKanga(){
+		kanga.List<kanga.LabeledStmt> mainStatements = new kanga.List<kanga.LabeledStmt>();
+		kanga.SExp value = getValue().toKanga(mainStatements);
+		
+		add(mainStatements, new kanga.Print(value));
+		return mainStatements;
+	}	
+	
+// ---------------------------------------------------------------------------------------------------------------------
+// --- EXPRESSIONS
+// ---------------------------------------------------------------------------------------------------------------------  
+
+	
+	public abstract kanga.Exp Exp.toKanga(kanga.List<kanga.LabeledStmt> code);
+	public abstract kanga.SExp SExp.toKanga(kanga.List<kanga.LabeledStmt> code);
+	
+	public kanga.Exp Call.toKanga(kanga.List<kanga.LabeledStmt> code){
+		int i = 0;
+		for(Temp param: getParams()){
+			if(i <= 3){
+				add(code, new kanga.Move(kanga.RegMapper.aReg(i),new kanga.RegExp(param.toKanga(code, true))));
+			} else{
+				add(code, new kanga.PassArg(i-3, param.toKanga(code,true)));
+			}
+			i++;			
+		}
+		callCounter().registerCall(i);
+		java.util.Set<Temp> restore = new java.util.HashSet<Temp>();
+		for(Temp t: spillTracker().getLoadedTemps()){
+			int regNum = registerInfo().getRegister(t);
+			int spillNum = registerInfo().getSpillNum(t);
+			kanga.Stmt spill = new kanga.AStore(new kanga.SpilledArg(spillNum), kanga.RegMapper.tReg(regNum));
+			add(code,spill);
+			restore.add(t);
+		}
+		
+		kanga.SExp name = getName().toKanga(code);
+		add(code, new kanga.Call(name));
+		
+		for(Temp t: restore){
+			if(liveness().aliveInNextBlock(getParentStmt(), t)){
+				int regNum = registerInfo().getRegister(t);
+				int spillNum = registerInfo().getSpillNum(t);
+				kanga.Stmt load = new kanga.ALoad(kanga.RegMapper.tReg(regNum), new kanga.SpilledArg(spillNum));
+				add(code,load);
+			} else {
+				registerInfo().spill(t);
+			}
+		}
+		restore.clear();
+		return new kanga.RegExp(new kanga.V0());
+	}
+	
+	public kanga.Exp HAlloc.toKanga(kanga.List<kanga.LabeledStmt> code){
+		return new kanga.HAlloc(getSize().toKanga(code));
+	}
+	
+	public kanga.SExp TempExp.toKanga(kanga.List<kanga.LabeledStmt> code){
+		return new kanga.RegExp(getTemp().toKanga(code,true));
+	}
+	
+	public kanga.SExp LabelExp.toKanga(kanga.List<kanga.LabeledStmt> code){
+		return new kanga.LabelExp(getLabel().toKanga());
+	}
+	
+	public kanga.SExp IntLiteral.toKanga(kanga.List<kanga.LabeledStmt> code){
+		return new kanga.IntLiteral(getInteger());
+	}
+	
+	public kanga.Exp Lt.toKanga(kanga.List<kanga.LabeledStmt> code){
+		kanga.Reg left = getLeft().toKanga(code,true);
+		add(code, new kanga.Move(new kanga.S7(), new kanga.RegExp(left)));
+		
+		return new kanga.Lt(new kanga.S7(), getRight().toKanga(code));
+	}
+	
+	public kanga.Exp Plus.toKanga(kanga.List<kanga.LabeledStmt> code){
+		kanga.Reg left = getLeft().toKanga(code,true);
+		add(code, new kanga.Move(new kanga.S7(), new kanga.RegExp(left)));
+		
+		return new kanga.Plus(new kanga.S7(), getRight().toKanga(code));
+	}
+	
+	public kanga.Exp Minus.toKanga(kanga.List<kanga.LabeledStmt> code){
+		kanga.Reg left = getLeft().toKanga(code,true);
+		add(code, new kanga.Move(new kanga.S7(), new kanga.RegExp(left)));
+		
+		return new kanga.Minus(new kanga.S7(), getRight().toKanga(code));
+	}
+	
+	public kanga.Exp Times.toKanga(kanga.List<kanga.LabeledStmt> code){
+		kanga.Reg left = getLeft().toKanga(code,true);
+		add(code, new kanga.Move(new kanga.S7(), new kanga.RegExp(left)));
+		
+		return new kanga.Times(new kanga.S7(), getRight().toKanga(code));
+	}
+	
+// ---------------------------------------------------------------------------------------------------------------------
+// --- STUFF
+// ---------------------------------------------------------------------------------------------------------------------  
+		
+	public kanga.Reg Temp.toKanga(kanga.List<kanga.LabeledStmt> codeList, boolean read){
+		int regNum = registerInfo().getRegister(this);
+		if(registerInfo().isSpilled(this)){
+			Temp t = registerInfo().load(this);
+			if(t != null){
+				int spillNum = registerInfo().spill(t);
+				kanga.Stmt spill = new kanga.AStore(new kanga.SpilledArg(spillNum), kanga.RegMapper.tReg(regNum));
+				add(codeList,spill);
+			}
+			if(read){
+				int thisSpillNum = registerInfo().getSpillNum(this);
+				kanga.Stmt load = new kanga.ALoad(kanga.RegMapper.tReg(regNum), new kanga.SpilledArg(thisSpillNum));
+				add(codeList,load);
+			}
+		}
+		return kanga.RegMapper.tReg(regNum);
+	}
+	
+	syn kanga.List<kanga.LabeledStmt> Program.spillAll(){
+		kanga.List<kanga.LabeledStmt> mainStatements = new kanga.List<kanga.LabeledStmt>();
+		java.util.List<Temp> needToSpill = new java.util.ArrayList<Temp>(registerInfo().getLoaded());
+		for(Temp t: needToSpill){
+			int regNum = registerInfo().getRegister(t);
+			int spillNum = registerInfo().spill(t);
+			kanga.Stmt spill = new kanga.AStore(new kanga.SpilledArg(spillNum), kanga.RegMapper.tReg(regNum));
+			add(mainStatements,spill);
+		}
+		return mainStatements;		
+	}
+	 eq Program.getStmts().spillAll() = this.spillAll();
+	 eq Program.getProcs().spillAll() = this.spillAll();
+	  
+	  inh kanga.List<kanga.LabeledStmt> Procedure.spillAll();
+	  inh kanga.List<kanga.LabeledStmt> LabeledStmt.spillAll();
+	  inh kanga.List<kanga.LabeledStmt> Stmt.spillAll();
+	  inh kanga.List<kanga.LabeledStmt> StmtExp.spillAll();
+	  inh kanga.List<kanga.LabeledStmt> Exp.spillAll();
+	  inh kanga.List<kanga.LabeledStmt> Label.spillAll();
+	  inh kanga.List<kanga.LabeledStmt> Temp.spillAll();
+	
+	public kanga.Label Label.toKanga(){
+		return new kanga.Label(getLabel());
+	}
+}

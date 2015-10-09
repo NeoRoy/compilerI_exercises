@@ -7,12 +7,31 @@ class MJFrontEnd {
   public static void main(String args[]) {
    String inputFileName;
    if(args.length != 1) {
-      System.out.println("MJFrontEnd: missing file command line argument");
+//      System.out.println("MJFrontEnd: missing file command line argument");
       //System.exit(1);
-//      inputFileName = "tests/MainTest.java";
-//      inputFileName = "tests/MainTestForLookup.java";
-//      inputFileName = "tests/MainTestForType.java";
-      inputFileName = "tests/MainTestForPiglet.java";
+//      inputFileName = "tests/carFrigge/MainTest.java";
+//      inputFileName = "tests/carFrigge/MainTestForLookup.java";
+//      inputFileName = "tests/carFrigge/MainTestForType.java";
+//	    inputFileName = "tests/carFrigge/MainTestForPiglet.java";
+//      inputFileName = "tests/carFrigge/MainTestForPigletWithClassDecl.java";
+//     inputFileName = "tests/carFrigge/MainTestForPigletWithMultipleClassDecls.java";
+//	     inputFileName = "tests/carFrigge/MainTestForKangaSpill.java";
+//	     inputFileName = "tests/carFrigge/MainTestForKangaParameter.java";
+//      inputFileName = "tests/carFrigge/MainTestForPigletArray.java";
+//	   inputFileName = "tests/Hauke/factorial.java";
+//	   inputFileName = "tests/Hauke/TreeVisitor.java";
+//	   inputFileName = "tests/Hauke/QuickSort.java";
+//	   inputFileName = "tests/Hauke/BubbleSort.java";
+//	   inputFileName = "tests/Hauke/MoreThan4.java";
+//	   inputFileName = "tests/Hauke/LinkedList.java";
+//	   inputFileName = "tests/carFrigge/ArrayList.java";
+//	   inputFileName = "tests/carFrigge/InnerIf3.java";
+//	   inputFileName = "tests/carFrigge/LinearSearch2.java";
+//	    inputFileName = "tests/carFrigge/MT.java";
+//	    inputFileName = "tests/carFrigge/NullTest.java";
+//	    inputFileName = "tests/carFrigge/MultCheck1.java";
+//	    inputFileName = "tests/carFrigge/MultCheck2.java";
+	    inputFileName = "tests/carFrigge/MultCheck3.java";
     }
    else {
       System.out.println("MJFrontEnd: starting on file " + args[0]);
@@ -34,17 +53,26 @@ class MJFrontEnd {
       }
       */
       // Print the resulting AST on standard output.
-      System.out.println(ast.print().getString()); 
+//      System.out.println(ast.print().getString()); 
 //      System.out.println(ast.validate().size()); 
       ast.check();
-      System.out.println("Anzahl der Fehler: "+ast.error().size());
+//      System.out.println("Anzahl der Fehler: "+ast.error().size());
       for (CompilationError error : ast.error()) {
     	  System.out.println(error.getReason());
       }
       if(ast.error().isEmpty()){
-	      System.out.println("");
-	      System.out.println("Piglet: ");
-	      System.out.println(ast.toPiglet().print().getString());
+//	      System.out.println("");
+//	      System.out.println("Piglet: ");
+    	  piglet.Program piglet = ast.toPiglet();
+//	      System.out.println(piglet.print().getString());
+    	  spiglet.Program spiglet = piglet.toSpiglet();
+//    	  System.out.println(spiglet.print().getString());
+    	  kanga.Program kanga = spiglet.toKanga();
+//    	  System.out.println(kanga.print().getString());
+//    	  kanga.execute();
+    	  mips.Program mips = kanga.toMips();
+    	  System.out.println(mips.print());
+//    	  mips.execute();
       }
     }
     catch (FileNotFoundException e) {

@@ -1,8 +1,0 @@
-class FehlerSammlung{
-
-	public int m1(){
-		A1 a;
-		a = new A2();
-		return 0;
-	}
-}

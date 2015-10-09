@@ -1,0 +1,234 @@
+aspect GraphColoring {
+	syn lazy Graph<Temp> Program.graph(LivenessAnalyse l, int noOfColors){
+		Graph<Temp> graph = new Graph<Temp>();
+		for(Block b : l.getBlocks()){
+			for(Temp t1: b.getAlive()){
+				for(Temp t2: b.getAlive()){
+//					if(!t1.getTempContext().equals(t2.getTempContext())){
+//						System.out.println(t1.toString() + " ist nicht im selben Kontext wie "+ t2.toString());
+//						TempContext tc = t1.getTempContext();
+//						TempContext lc = t2.getTempContext();
+//						System.out.println((tc instanceof Procedure ? ((Procedure) tc).getLabel() : "MAIN") + " und "+ (lc instanceof Procedure ? ((Procedure) lc).getLabel() : "MAIN"));
+//						System.out.println(b);
+//					}
+					graph.addEdge(t1,t2);
+				}
+			}
+		}		
+		
+		graph.colorize(noOfColors);
+		
+		return graph;
+	}
+
+	public class Graph<T>{
+		private java.util.Map<T,Neighbourhood<T>> graph = new java.util.HashMap<T,Neighbourhood<T>>();
+		
+		public void addEdge(T node1, T node2){
+			Neighbourhood<T> n1 = getNeighbourhood(node1, graph);
+			if(!node1.equals(node2)){
+				Neighbourhood<T> n2 = getNeighbourhood(node2, graph);
+			
+				n1.addNeighbour(n2.getNode());
+				n2.addNeighbour(n1.getNode());
+			}
+		}
+		
+		public void addNode(T node){
+			addEdge(node,node);
+		}
+		
+		private Neighbourhood<T> getNeighbourhood(T node, java.util.Map<T,Neighbourhood<T>> graph){
+			Neighbourhood<T> n = graph.get(node);
+			if(n == null){
+				Node<T> newNode = new Node<T>(node);
+				n = new Neighbourhood<T>(newNode);
+				graph.put(node, n);
+			}
+			return n;
+		}
+		
+		public void colorize(int noOfColors){
+			for(Neighbourhood<T> n : graph.values()){
+				Integer color = n.getFreeColor(noOfColors);
+				if(color == null){
+					java.util.Set<Node<T>> spillings = new java.util.HashSet<Node<T>>();
+					color = n.getLeastSpilledNeighbourColor(noOfColors, spillings);
+					for (Node<T> node : spillings) {
+						n.getNode().addSpilling(node);
+					}
+				}
+				n.getNode().setColor(color);
+			}
+		}
+		
+		public java.util.Map<T, ColorInformation<T>> getColorMap(){
+			java.util.Map<T, ColorInformation<T>> result = new java.util.HashMap<T, ColorInformation<T>>();
+			for(Neighbourhood<T> n : graph.values()){
+				Node<T> node = n.getNode();
+				T value = node.getValue();
+				Integer color = node.getColor();
+				java.util.Set<Node<T>> spillingInfo = node.getSpillingInfo();
+				
+				ColorInformation<T> ci = new ColorInformation<T>();
+				ci.setColor(color == null ? -1: color);
+				for(Node<T> spill : spillingInfo){
+					ci.addSpilling(spill.getValue());
+				}
+				
+				result.put(value, ci);
+			}
+			return result;
+		}
+		
+		private static class Neighbourhood<T>{
+			Node<T> node;
+			java.util.Set<Node<T>> neighbours = new java.util.HashSet<Node<T>>();
+			
+			public Neighbourhood(Node<T> node){
+				this.node = node;
+			}
+			
+			public Node<T> getNode(){
+				return node;
+			}
+			
+			public int getLeastSpilledNeighbourColor(int noOfColors, java.util.Set<Node<T>> resultSet){
+				java.util.List<java.util.Set<Node<T>>> values = new java.util.ArrayList<java.util.Set<Node<T>>>(noOfColors);
+				for(int i = 0; i < noOfColors; i++){
+					values.add(new java.util.HashSet<Node<T>>());
+				}
+				for (Node<T> n : neighbours) {
+					if(n.getColor() != null){
+						values.get(n.getColor()).add(n);
+					}
+				}
+				
+				int color = -1;
+				java.util.Set<Node<T>> set = new java.util.HashSet<Graph.Node<T>>();
+				int leastUsed = Integer.MAX_VALUE;
+				for(int i = 0; i < noOfColors; i++){
+					int spilled = 0;
+					for (Node<T> node : values.get(i)) {
+						spilled += node.getSpillingInfo().size();
+					}
+					if(spilled < leastUsed){
+						leastUsed = spilled;
+						set = values.get(i);
+						color = i;
+					}
+				}
+				if(resultSet != null){
+					resultSet.clear();
+					resultSet.addAll(set);
+				}
+				return color;
+			}
+			
+			public void addNeighbour(Node<T> node){
+				neighbours.add(node);
+			}
+			
+			public int getSize(){
+				return neighbours.size();
+			}
+			
+			public Integer getFreeColor(int noOfColors){
+				java.util.List<Integer> colors = new java.util.ArrayList<Integer>(noOfColors);
+				for(int i = 1; i < noOfColors; i++){
+					colors.add(i);
+				}
+				
+				for(Node<T> node : neighbours){
+					colors.remove((Integer) node.getColor());
+				}
+				
+				return colors.isEmpty() ? null : colors.get(0);
+			}
+		}
+		
+		private static class Node<T>{
+			private T value;
+			private Integer color;
+			private boolean mark = false;
+			private java.util.Set<Node<T>> spillingInfo = new java.util.HashSet<Node<T>>();
+			
+			public Node(T t){
+				value = t;
+			}
+			
+			public T getValue(){
+				return value;
+			}
+			
+			public void setColor(int i){
+				color = i;
+			}
+			
+			public Integer getColor(){
+				return color;
+			}
+			
+			public void addSpilling(Node<T> n){
+				spillingInfo.add(n);
+				n.addSpilling(this,null);
+			}
+			
+			protected void addSpilling(Node<T> n, Object o){
+				spillingInfo.add(n);
+			}
+			
+			public java.util.Set<Node<T>> getSpillingInfo(){
+				return spillingInfo;
+			}
+			
+			@Override
+			public int hashCode() {
+				final int prime = 31;
+				int result = 1;
+				result = prime * result
+						+ ((value == null) ? 0 : value.hashCode());
+				return result;
+			}
+
+			@Override
+			public boolean equals(Object obj) {
+				if (this == obj)
+					return true;
+				if (obj == null)
+					return false;
+				if (getClass() != obj.getClass())
+					return false;
+				Node other = (Node) obj;
+				if (value == null) {
+					if (other.value != null)
+						return false;
+				} else if (!value.equals(other.value))
+					return false;
+				return true;
+			}
+		}
+	}
+	
+	class ColorInformation<T>{			
+			private int color;
+			private java.util.Set<T> spillingInfo = new java.util.HashSet<T>();
+			
+			public void setColor(int i){
+				color = i;
+			}
+			
+			public int getColor(){
+				return color;
+			}
+			
+			public void addSpilling(T n){
+				spillingInfo.add(n);
+			}
+			
+			public java.util.Set<T> getSpillingInfo(){
+				return spillingInfo;
+			}
+		}
+
+}

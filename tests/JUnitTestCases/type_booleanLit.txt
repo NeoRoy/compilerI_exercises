@@ -1,8 +1,0 @@
-class FehlerSammlung{
-	public int m(){
-		boolean b;
-		b = true;
-		b = false;
-		return 0;
-	}
-}

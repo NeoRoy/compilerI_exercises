@@ -7,20 +7,21 @@ aspect Size{
 		return sum;
 	}
 	public int ClassDecl.getSizeOfDecl(){
-		return ClassDecl.getSizeOfDecl(getVariabless());
+//		return ClassDecl.getSizeOfDecl(getVariabless());
+		return classGen().getObjectSize(this);
 	}
 	
 	public abstract int Type.size();
 	public int IntArrType.size() {
-		return 4;
+		return 1;
 	}
 	public int BooleanType.size() {
-		return 4;
+		return 1;
 	}
 	public int IntType.size() {
-		return 4;
+		return 1;
 	}
 	public int IdType.size() {
-		return 4;
+		return 1;
 	}
 }

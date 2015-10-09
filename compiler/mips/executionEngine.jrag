@@ -1,0 +1,388 @@
+aspect Execution {
+
+  syn lazy RegEngine Program.regs() {
+  	return new RegEngine(this);
+  }
+  eq Program.getCode().regs() = this.regs();
+  inh lazy RegEngine Code.regs();
+  inh lazy RegEngine Reg.regs();
+  
+  syn lazy Memory Program.memory() {
+  	return new Memory();
+  }
+  eq Program.getCode().memory() = this.memory();
+  inh lazy Memory Code.memory();
+
+  syn lazy java.util.Map<Integer,MipsCode> Program.addrLookup() = new java.util.HashMap<Integer,MipsCode>();
+  eq Program.getCode().addrLookup() = this.addrLookup();
+  inh lazy java.util.Map<Integer,MipsCode> Code.addrLookup();
+  
+  syn lazy java.util.Map<Code,Integer> Program.codeLookup() = new java.util.HashMap<Code,Integer>();
+  eq Program.getCode().codeLookup() = this.codeLookup();
+  inh lazy java.util.Map<Code,Integer> Code.codeLookup();
+  
+  syn lazy java.util.Map<Label,Integer> Program.labelLookup() = new java.util.HashMap<Label,Integer>();
+  eq Program.getCode().labelLookup() = this.labelLookup();
+  inh lazy java.util.Map<Label,Integer> Code.labelLookup();
+  inh lazy java.util.Map<Label,Integer> Value.labelLookup();
+  
+  syn lazy FirstCode Program.firstCode() = new FirstCode();
+  
+  
+  syn lazy Continuation Program.continuation() {
+  	return new Continuation();
+  }
+  eq Program.getCode().continuation() = this.continuation();
+  inh lazy Continuation Code.continuation();
+  
+	class RegEngine{
+		private java.util.Map<Reg, Register> init = new java.util.HashMap<Reg, Register>();
+		private java.util.Map<Reg, Register> regs = new java.util.HashMap<Reg, Register>();
+		
+		public RegEngine(Program creator){
+			init.put(new Zero(), new NullRegister());
+			Register sp = new Register();
+			sp.write(creator.memory().getHighest());
+			Register fp = new Register();
+			fp.write(sp.read());
+			init.put(new SP(), sp);
+			init.put(new FP(), fp);
+			Register gp = new Register();
+			gp.write(4);
+			init.put(new GP(), gp);
+		}
+		
+		public void reset(){
+			regs.clear();
+			for(java.util.Map.Entry<Reg, Register> e: init.entrySet()){
+				regs.put(e.getKey(), e.getValue().clone());
+			}
+		}
+		
+		public Register getRegister(Reg reg){
+			Register r = regs.get(reg);
+			if(r == null){
+				r = new Register();
+				regs.put(reg,r);
+			}
+			return r;
+		}		
+	}
+	
+	class Register{
+		int value = 0;
+		
+		public int read(){
+			return value;
+		}
+		
+		public void write(int value){
+			this.value = value;
+		}
+		
+		public Register clone(){
+			Register s = new Register();
+			s.write(read());
+			return s;
+		}
+	}
+	
+	class NullRegister extends Register{
+		public void write(int value){
+			System.out.println("NullRegister beschrieben!!!");
+		}
+		public Register clone(){
+			return new NullRegister();
+		}
+	}
+	
+	class Memory{
+		private static final int SIZE = 1024*32;
+		
+		private byte[] memory;
+		
+		public void write(int pos, int value){
+			byte[] values = java.nio.ByteBuffer.allocate(4).order(java.nio.ByteOrder.LITTLE_ENDIAN).putInt(value).array();
+			for(int i = 0; i < values.length; i++){
+				memory[pos+i] = values[i];
+			}
+		}
+		
+		public int read(int pos){
+			byte[] bytes =  new byte[]{memory[pos], memory[pos+1],memory[pos+2],memory[pos+3]};
+			return java.nio.ByteBuffer.wrap(bytes).order(java.nio.ByteOrder.LITTLE_ENDIAN).getInt();
+		}
+		
+		public int getHighest(){
+			return memory.length -1;
+		}
+		
+		public void reset(){
+			memory = new byte[SIZE];
+			java.util.Random r = new java.util.Random();
+			for(int i = 0; i < SIZE; i++){
+				memory[i] = (byte) r.nextInt();
+			}
+		}
+	}
+	
+	class MipsCode {
+		public Code statement;
+		public MipsCode next;
+		
+		public void execute(){
+			MipsCode c = this;
+			while(c != null && c.statement.continuation().cont) {
+				if(c.statement.execute()){
+					c = c.next;
+				} else {
+					break;
+				}
+			}
+		} 
+	}
+	
+	class Position {
+		public int line;
+	}
+	
+	class FirstCode {
+		public MipsCode first = null;
+	}
+	
+	class Continuation{
+		public boolean cont = true;
+	}
+	
+	syn lazy int Program.prepareExecution(){
+		int i = 1;
+		MipsCode last = null;
+		for(Code c: getCodes()){
+			MipsCode thisOne = new MipsCode();
+			thisOne.statement = c;
+			if(last != null){
+				last.next = thisOne;
+			} else {
+				firstCode().first = thisOne;
+			}
+			if(c instanceof LabelCode){
+				labelLookup().put(((LabelCode) c).getLabel(),i);
+			}
+			addrLookup().put((Integer) i,thisOne);
+			codeLookup().put(thisOne.statement, (Integer) i);
+			last = thisOne;
+			i += 4;
+		}
+		return 0;
+	}
+
+	
+	public void Program.execute(){
+		memory().reset();
+		prepareExecution();
+		regs().reset();
+		continuation().cont = true;
+		
+		firstCode().first.execute();
+	}
+	
+	public abstract boolean Code.execute();
+	public abstract int Value.read();
+	public boolean Beq.execute(){
+		if(regs().getRegister(getValue1()).read() == regs().getRegister(getValue2()).read()){
+			int i = labelLookup().get(getLabel());
+			addrLookup().get(i).execute();
+			return false;
+		}
+		return true;
+	}
+	
+	public boolean Jump.execute(){
+		int line = labelLookup().get(getLabel());
+		addrLookup().get(line).execute();
+		return false;
+	}
+	
+	public boolean JumpReg.execute(){
+		int line = regs().getRegister(getAddr()).read();
+		addrLookup().get(line).execute();
+		return false;
+	}
+	
+	public boolean JumpLink.execute(){
+		int line = regs().getRegister(getAddr()).read();
+		Register raReg = regs().getRegister(new RA());
+		Integer thisLine = codeLookup().get(this);
+		raReg.write(thisLine+4);
+		addrLookup().get(line).execute();
+		return false;
+	}
+	
+	public boolean StoreWord.execute(){
+		int adresse = regs().getRegister(getAddr()).read();
+		int offset = getOffset();
+		int pos = adresse + offset;
+		
+		int value = regs().getRegister(getValue()).read();
+		memory().write(pos, value);
+		return true;
+	}
+	
+	public boolean LoadWord.execute(){
+		int adresse = regs().getRegister(getAddr()).read();
+		int offset = getOffset();
+		int pos = adresse + offset;
+		
+		int value = memory().read(pos);
+		regs().getRegister(getDest()).write(value);
+		return true;
+	}
+	
+	public boolean LoadImediate.execute(){
+		regs().getRegister(getDest()).write(getConstant());
+		return true;
+	}
+	
+	public boolean LoadAdress.execute(){
+		regs().getRegister(getDest()).write(getValue().read());
+		return true;
+	}
+	
+	public boolean Add.execute(){
+		int left = regs().getRegister(getLeft()).read();
+		int right = regs().getRegister(getRight()).read();
+		
+		int result = left + right;
+		regs().getRegister(getDest()).write(result);
+		return true;
+	}
+	
+	public boolean AddImmediate.execute(){
+		int left = regs().getRegister(getLeft()).read();
+		int right = getConstant();
+		
+		int result = left + right;
+		regs().getRegister(getDest()).write(result);
+		return true;
+	}
+	
+	public boolean Sub.execute(){
+		int left = regs().getRegister(getLeft()).read();
+		int right = regs().getRegister(getRight()).read();
+		
+		int result = left - right;
+		regs().getRegister(getDest()).write(result);
+		return true;
+	}
+	
+	public boolean Mult.execute(){
+		int left = regs().getRegister(getLeft()).read();
+		int right = regs().getRegister(getRight()).read();
+		
+		int result = left * right;
+		regs().getRegister(getDest()).write(result);
+		return true;
+	}
+	
+	public boolean SetLessThan.execute(){
+		int left = regs().getRegister(getLeft()).read();
+		int right = regs().getRegister(getRight()).read();
+		
+		int result = left < right ? 1 : 0;
+		regs().getRegister(getDest()).write(result);
+		return true;
+	}
+	
+	public boolean Syscall.execute(){
+		int v0 = regs().getRegister(new V0()).read();
+		int a0 = regs().getRegister(new A0()).read();
+		
+		switch(v0){
+			case 1: System.out.print(a0); break;
+			case 4: switch(a0){
+						case -1345677: System.out.println(""); break;
+						case -1345676: System.out.print("ERROR"); break;
+						default: System.out.print("Not yet implemented"); break;
+					} break;
+			case 10: continuation().cont = false; break;
+			case 17: continuation().cont = false; break;
+			default: System.out.println("Not yet implemented"); break;
+		}
+		return true;
+	}
+	
+	public boolean LabelCode.execute(){
+		return true;
+	}
+	
+	public boolean Move.execute(){
+		Reg dest = getDest();
+		int v = getValue().read();
+		
+		regs().getRegister(dest).write(v);
+		
+		return true;
+	}
+	
+	public int Reg.read(){
+		return regs().getRegister(this).read();
+	}
+	
+	public int LabelValue.read(){
+		return labelLookup().get(getLabel());
+	}
+	
+	public int NewLine.read(){
+		return -1345677;
+	}
+	
+	public int ErrorLine.read(){
+		return -1345676;
+	}
+		
+	public int Reg.hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + ((getClass() == null) ? 0 : getClass().hashCode());
+		return result;
+	}
+	public boolean Reg.equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		Reg other = (Reg) obj;
+		if (getClass() == null) {
+			if (other.getClass() != null)
+				return false;
+		} else if (!getClass().equals(other.getClass()))
+			return false;
+		return true;
+	}
+	
+	
+	public int Label.hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + ((getLabel() == null) ? 0 : getLabel().hashCode());
+		return result;
+	}
+
+	public boolean Label.equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		Label other = (Label) obj;
+		if (getLabel() == null) {
+			if (other.getLabel() != null)
+				return false;
+		} else if (!getLabel().equals(other.getLabel()))
+			return false;
+		return true;
+	}
+}

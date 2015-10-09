@@ -1,0 +1,235 @@
+aspect Printer {
+    public String Program.print() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(getPredefinedMethods());
+        sb.append(".text\nmain:\n");
+        for (Code c : getCodes()) {
+            sb.append(c.printPref());
+        }
+        return sb.toString();
+    }
+    
+    private String Program.getPredefinedMethods() {
+		String halloc = "\n         .text\n" + "         .globl _halloc\n"
+				+ "_halloc:\n" + "         li $v0, 9\n" + "         syscall\n"
+				+ "         j $ra\n";
+		String print = "\n         .text\n" + "         .globl _print\n"
+				+ "_print:\n" + "         li $v0, 1\n" + "         syscall\n"
+				+ "         la $a0, newl\n" + "         li $v0, 4\n"
+				+ "         syscall\n" + "         j $ra\n";
+		String newl = "\n         .data\n" + "         .align   0\n"
+				+ "newl:    .asciiz \"\\n\"\n";
+		String str_er = "\n         .data\n" + "         .align   0\n"
+				+ "str_er:  .asciiz \"ERROR\"\n";
+
+		return halloc + print + newl + str_er;
+	}
+
+    abstract String Code.print();
+    abstract String Value.print();
+    
+    String Code.printPref(){
+    	return "     "+print();
+    }
+
+    String Beq.print() {
+        return "beq " + getValue1().print() + ", " + getValue2().print() + ", " + getLabel().print() + "\n";
+    }
+
+    String Jump.print() {
+        return "j " + getLabel().print() + "\n";
+    }
+
+    String JumpReg.print() {
+        return "jr " + getAddr().print() + "\n";
+    }
+
+    String JumpLink.print() {
+        return "jal " + getAddr().print() + "\n";
+    }
+
+    String StoreWord.print() {
+        return "sw " + getValue().print() + ", " + String.valueOf(getOffset()) + "(" + getAddr().print() + ")\n";
+    }
+
+    String LoadWord.print() {
+        return "lw " + getDest().print() + ", " + String.valueOf(getOffset()) + "(" + getAddr().print() + ")\n";
+    }
+
+    String LoadImediate.print() {
+        return "li " + getDest().print() + ", " + String.valueOf(getConstant()) + "\n";
+    }
+    
+    String LoadAdress.print() {
+    	return "la " + getDest().print() + ", " + getValue().print()+"\n";
+    }
+
+    String Add.print() {
+        return "add " + getDest().print() + ", " + getLeft().print() + ", " + getRight().print() + "\n";
+    }
+
+    String AddImmediate.print() {
+        return "add " + getDest().print() + ", " + getLeft().print() + ", " + String.valueOf(getConstant()) + "\n";
+    }
+
+    String Sub.print() {
+        return "sub " + getDest().print() + ", " + getLeft().print() + ", " + getRight().print() + "\n";
+    }
+
+    String Mult.print() {
+        return "mul " + getDest().print() + ", " + getLeft().print() + ", " + getRight().print() + "\n";
+    }
+
+    String SetLessThan.print() {
+        return "slt " + getDest().print() + ", " + getLeft().print() + ", " + getRight().print() + "\n";
+    }
+
+    String Move.print() {
+        return "move " + getDest().print() + ", " + getValue().print() + "\n";
+    }
+
+    String Syscall.print() {
+        return "syscall\n";
+    }
+
+    abstract String Reg.print();
+
+    String A0.print() {
+        return "$a0";
+    }
+
+    String A1.print() {
+        return "$a1";
+    }
+
+    String A2.print() {
+        return "$a2";
+    }
+
+    String A3.print() {
+        return "$a3";
+    }
+
+    String T0.print() {
+        return "$t0";
+    }
+
+    String T1.print() {
+        return "$t1";
+    }
+
+    String T2.print() {
+        return "$t2";
+    }
+
+    String T3.print() {
+        return "$t3";
+    }
+
+    String T4.print() {
+        return "$t4";
+    }
+
+    String T5.print() {
+        return "$t5";
+    }
+
+    String T6.print() {
+        return "$t6";
+    }
+
+    String T7.print() {
+        return "$t7";
+    }
+
+    String T8.print() {
+        return "$t8";
+    }
+
+    String T9.print() {
+        return "$t9";
+    }
+
+    String S0.print() {
+        return "$s0";
+    }
+
+    String S1.print() {
+        return "$s1";
+    }
+
+    String S2.print() {
+        return "$s2";
+    }
+
+    String S3.print() {
+        return "$s3";
+    }
+
+    String S4.print() {
+        return "$s4";
+    }
+
+    String S5.print() {
+        return "$s5";
+    }
+
+    String S6.print() {
+        return "$s6";
+    }
+
+    String S7.print() {
+        return "$s7";
+    }
+
+    String GP.print() {
+        return "$gp";
+    }
+
+    String SP.print() {
+        return "$sp";
+    }
+
+    String FP.print() {
+        return "$fp";
+    }
+
+    String V0.print() {
+        return "$v0";
+    }
+
+    String V1.print() {
+        return "$v1";
+    }
+
+    String RA.print() {
+        return "$ra";
+    }
+
+    String Zero.print() {
+        return "$zero";
+    }
+
+    String Label.print() {
+        return getLabel();
+    }
+
+    String LabelCode.print() {
+        return getLabel().print()+":\n";
+    }
+    String LabelCode.printPref(){
+    	return print();
+    }
+
+    String LabelValue.print() {
+        return getLabel().print();
+    }
+    
+    String ErrorLine.print() {
+    	return "str_er";
+    }
+    
+    String NewLine.print() {
+    	return "newl";
+    }
+}

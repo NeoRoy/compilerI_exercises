@@ -1,0 +1,23 @@
+aspect varLookup {
+	public VarDecl Id.lookupVarDecl(){
+		VarDecl v = localLookup().lookup(this);
+		if(v == null){
+			ClassDecl c = null;
+			ASTNode n = getParent();
+			while(n != null && c == null){
+				if(n instanceof ClassDecl){
+					c = (ClassDecl) n;
+				}
+				n = n.getParent();
+			}
+			if(c != null){
+				try{
+					Type t = new IdType("0", c.getIdent().clone());
+					t.setParent(this);
+					v = lookup().lookupVar(t, this);
+				} catch (CloneNotSupportedException e){}
+			}
+		}
+		return v;
+	}
+}

@@ -1,0 +1,24 @@
+aspect Conv{
+	public void List.addAll(List<T> values){
+		for(T o : values){
+			add(o);
+		}
+	}
+	
+	
+	
+	protected void Code.add(kanga.List<kanga.LabeledStmt> list, kanga.Stmt s){
+  		list.add(new kanga.LabeledStmt(new kanga.Opt<kanga.Label>(),s));
+  	}
+  	protected void Code.add(kanga.List<kanga.LabeledStmt> list, kanga.LabeledStmt s){
+  		list.add(s);
+  	}
+  	
+  	public Stmt Exp.getParentStmt() {
+  		ASTNode<?> node = this;
+  		while(!(node instanceof Stmt)){
+  			node = node.getParent();
+  		}
+  		return (Stmt) node;
+  	} 
+}

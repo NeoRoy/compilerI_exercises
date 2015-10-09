@@ -1,0 +1,284 @@
+aspect Liveness {
+	syn lazy LivenessAnalyse Program.liveness(){
+		LivenessAnalyse result = new LivenessAnalyse();
+		
+		result.addCode(getStmtss());
+		for(Procedure p : getProcss())	result.addCode(p.getStmtsRet());
+		
+		result.calculate();
+		
+		return result;
+	}
+  eq Program.getStmts().liveness() = this.liveness();
+  eq Program.getProcs().liveness() = this.liveness();
+  
+  inh lazy LivenessAnalyse LabeledStmt.liveness();
+  inh lazy LivenessAnalyse Procedure.liveness();
+  inh lazy LivenessAnalyse Stmt.liveness();
+  inh lazy LivenessAnalyse StmtExp.liveness();
+  inh lazy LivenessAnalyse Exp.liveness();
+  inh lazy LivenessAnalyse Label.liveness();
+  inh lazy LivenessAnalyse Temp.liveness();
+
+
+	class Block{
+	
+		public final int blockNum = BLOCK_NUM++;
+		private static int BLOCK_NUM = 0;
+		private java.util.List<Stmt> blockCode = new java.util.ArrayList<Stmt>();
+		
+		private java.util.Set<Block> successors = new java.util.HashSet<Block>();
+		
+		private java.util.Set<Temp> gen = new java.util.HashSet<Temp>();
+		private java.util.Set<Temp> kill = new java.util.HashSet<Temp>();
+		
+		private java.util.Set<Temp> in = new java.util.HashSet<Temp>();
+		private java.util.Set<Temp> out = new java.util.HashSet<Temp>();
+		
+		public void addSuccessor(Block suc){
+			successors.add(suc);
+		}
+		
+		public void addCode(Stmt stmt){
+			blockCode.add(stmt);
+			stmt.addGenKill(gen,kill);
+		}
+		
+		public boolean isAlive(Temp t){
+			return out.contains(t);
+		}
+		
+		public void addCode(Exp e){
+			e.addGen(gen,kill);
+		}
+		
+		public java.util.Set<Temp> getIn(){
+			return in;
+		}
+		
+		public java.util.Set<Temp> getOut(){
+			return out;
+		}
+		
+		public java.util.Set<Temp> getAlive(){
+			java.util.Set<Temp> set = new java.util.HashSet<Temp>();
+			set.addAll(kill);
+			set.addAll(getIn());
+			set.addAll(getOut());
+			return set;
+		}
+		
+		public java.util.Set<Block> getSuccessors(){
+			return successors;
+		}
+		
+		public boolean recalculate(){
+			java.util.Set<Temp> newOut = new java.util.HashSet<Temp>();
+			for(Block suc : successors){
+				newOut.addAll(suc.getIn());
+			}
+			in.clear();
+			in.addAll(newOut);
+			in.removeAll(kill);
+			in.addAll(gen);
+			boolean result = !newOut.equals(out);
+			out = newOut;
+			return result; 
+		}
+		
+		public java.util.List<Stmt> getBlockCode(){
+			return java.util.Collections.unmodifiableList(blockCode);
+		}
+
+		public String toString() {
+			StringBuilder buil = new StringBuilder();
+			buil.append("[");
+			for(Block b: successors){
+				buil.append(b.blockNum).append(",");
+			}
+			buil.append("]");
+			return "Block [num="+blockNum+", blockCode=" + blockCode + ", successors=" + buil.toString() + ", gen=" + gen + ", kill=" + kill + ", in=" + in + ", out=" + out + "]";
+		}
+	}
+	
+	class LivenessAnalyse{
+		private java.util.Map<Label,Block> labelToBlock = new java.util.HashMap<Label,Block>();
+		private java.util.Map<Stmt,Block> codeToBlock = new java.util.HashMap<Stmt,Block>();
+		private java.util.Set<Block> blocks = new java.util.HashSet<Block>();
+		private Block currentBlock;
+		
+		public java.util.Set<Block> getBlocks(){
+			return blocks;
+		}
+		
+		public void calculate(){
+			boolean changed = true;
+			while(changed){
+				changed = false;
+				for(Block b : blocks){
+					if(b.recalculate()){
+						changed = true;
+					}
+				}
+			}
+		}
+		
+		private Block getBlock(Label label){
+			if(labelToBlock.containsKey(label)){
+				return labelToBlock.get(label);
+			} else {
+				Block res = new Block();
+				labelToBlock.put(label, res);
+				return res;
+			}
+		}
+		
+		public Block getBlock(Stmt s){
+			return codeToBlock.get(s);
+		}
+		
+		private Block getCurrentBlock(boolean createNewBlock, boolean linkBlock, Label l){
+			if(currentBlock == null){
+				currentBlock = new Block();
+				blocks.add(currentBlock);
+				return currentBlock;
+			}
+			Block b = null;
+			if(l != null || createNewBlock){
+				if(l != null){
+					b = getBlock(l);
+				} else {
+					b = new Block();
+				}
+				if (linkBlock || !createNewBlock){
+					currentBlock.addSuccessor(b);
+				}
+				blocks.add(b);
+				currentBlock = b;
+			}
+			return currentBlock;
+		}
+		
+		public boolean aliveInNextBlock(Stmt s, Temp t){
+			Block b = codeToBlock.get(s);
+			return b.getOut().contains(t);
+		}
+		
+		public void addCode(List<LabeledStmt> code){
+			boolean createNewBlock = false;
+			boolean linkBlock = false;
+			boolean jumpTillLabel = false;
+			for(LabeledStmt labeledStmt: code){
+				Label l = labeledStmt.getLabel();
+				if(jumpTillLabel){
+					if(l == null){
+						continue;
+					} else {
+						jumpTillLabel = false;
+					}
+				}
+				Block block = getCurrentBlock(createNewBlock, linkBlock, l);
+				Stmt stmt = labeledStmt.getStmt();
+				block.addCode(stmt);
+				codeToBlock.put(stmt,block);
+				if(stmt instanceof CJump){
+					createNewBlock = true;
+					linkBlock = true;
+					Label jumpLabel = ((CJump) stmt).getLabel();
+					block.addSuccessor(getBlock(jumpLabel));
+				} else if (stmt instanceof Jump){
+					createNewBlock = true;
+					linkBlock = false;
+					Label jumpLabel = ((Jump) stmt).getLabel();
+					block.addSuccessor(getBlock(jumpLabel));					
+				} else if (stmt instanceof Err){
+					jumpTillLabel = true;
+					linkBlock = false;
+				} else {
+					linkBlock = false;
+					createNewBlock=false;
+				}
+			}
+		}
+		
+		public void addCode(StmtExp e){
+			currentBlock = null;
+			addCode(e.getStmtss());
+			getCurrentBlock(false,false, null).addCode(e.getRetExp());
+		}
+	}
+	
+	public boolean Stmt.containsCall(){
+		java.util.List<ASTNode<?>> check = new java.util.ArrayList<ASTNode<?>>();
+		check.add(this);
+		while (!check.isEmpty()) {
+			ASTNode<?> next = check.get(0);
+			if (next instanceof Call) {
+				return true;
+			}
+			int children = next.getNumChild();
+			for (int i = 0; i < children; i++) {
+				check.add(next.getChild(i));
+			}
+			check.remove(0);
+		}
+		return false;
+	}
+	
+	public abstract void Stmt.addGenKill(java.util.Set<Temp> gen, java.util.Set<Temp> kill);
+	public void Stmt.addGen(Temp t, java.util.Set<Temp> gen, java.util.Set<Temp> kill){
+		if(!kill.contains(t)){
+			gen.add(t);
+		}
+	}
+	public void Stmt.addKill(Temp t, java.util.Set<Temp> gen, java.util.Set<Temp> kill){
+		kill.add(t);
+	}
+	
+	public void Noop.addGenKill(java.util.Set<Temp> gen, java.util.Set<Temp> kill){}
+	public void Err.addGenKill(java.util.Set<Temp> gen, java.util.Set<Temp> kill){}
+	public void CJump.addGenKill(java.util.Set<Temp> gen, java.util.Set<Temp> kill){
+		addGen(getCond(),gen,kill);		
+	}
+	public void Jump.addGenKill(java.util.Set<Temp> gen, java.util.Set<Temp> kill){}
+	public void HStore.addGenKill(java.util.Set<Temp> gen, java.util.Set<Temp> kill){
+		addGen(getAddr(),gen,kill);		
+		addGen(getValue(),gen,kill);		
+	}
+	public void HLoad.addGenKill(java.util.Set<Temp> gen, java.util.Set<Temp> kill){
+		addGen(getAddr(),gen,kill);		
+		addKill(getDest(),gen,kill);		
+	}
+	public void Move.addGenKill(java.util.Set<Temp> gen, java.util.Set<Temp> kill){
+		getSource().addGen(gen,kill);	
+		addKill(getDest(),gen,kill);		
+	}
+	public void Print.addGenKill(java.util.Set<Temp> gen, java.util.Set<Temp> kill){
+		getValue().addGen(gen,kill);	
+	}
+	
+	public abstract void Exp.addGen(java.util.Set<Temp> gen, java.util.Set<Temp> kill);
+	public void Exp.addGen(Temp t, java.util.Set<Temp> gen, java.util.Set<Temp> kill){
+		if(!kill.contains(t)){
+			gen.add(t);
+		}
+	}
+	public void Call.addGen(java.util.Set<Temp> gen, java.util.Set<Temp> kill){
+		getName().addGen(gen,kill);
+		for(Temp t : getParams()){
+			addGen(t,gen,kill);
+		}
+	}
+	public void HAlloc.addGen(java.util.Set<Temp> gen, java.util.Set<Temp> kill){
+		getSize().addGen(gen,kill);
+	}
+	public void TempExp.addGen(java.util.Set<Temp> gen, java.util.Set<Temp> kill){
+		addGen(getTemp(),gen,kill);
+	}
+	public void LabelExp.addGen(java.util.Set<Temp> gen, java.util.Set<Temp> kill){}
+	public void IntLiteral.addGen(java.util.Set<Temp> gen, java.util.Set<Temp> kill){}
+	public void Binop.addGen(java.util.Set<Temp> gen, java.util.Set<Temp> kill){
+		addGen(getLeft(),gen,kill);
+		getRight().addGen(gen,kill);
+	}
+}

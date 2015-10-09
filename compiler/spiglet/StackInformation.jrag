@@ -1,0 +1,77 @@
+aspect StackInformation {
+	syn lazy CallCounter Program.callCounter() {
+  		return new CallCounter();
+  	}
+	syn lazy CallCounter Procedure.callCounter() {
+  		return new CallCounter();
+  	}
+	  eq Program.getStmts().callCounter() = this.callCounter();
+	  eq Procedure.getLabel().callCounter() = this.callCounter();
+	  eq Procedure.getStmtsRet().callCounter() = this.callCounter();
+	  
+	  inh lazy CallCounter LabeledStmt.callCounter();
+	  inh lazy CallCounter Stmt.callCounter();
+	  inh lazy CallCounter StmtExp.callCounter();
+	  inh lazy CallCounter Exp.callCounter();
+	  inh lazy CallCounter Label.callCounter();
+	  inh lazy CallCounter Temp.callCounter();
+	  
+	class CallCounter{
+		int maxArgs = 0;
+		
+		public void registerCall(int paramCount){
+			maxArgs = Math.max(maxArgs, paramCount);
+		}
+		
+		public int getMaxArgs(){
+			return maxArgs;
+		}
+	}
+	
+	syn lazy SpillTracker Program.spillTracker() {
+  		return new SpillTracker();
+  	}
+	syn lazy SpillTracker Procedure.spillTracker() {
+  		return new SpillTracker();
+  	}
+	  eq Program.getStmts().spillTracker() = this.spillTracker();
+	  eq Procedure.getLabel().spillTracker() = this.spillTracker();
+	  eq Procedure.getStmtsRet().spillTracker() = this.spillTracker();
+	  
+	  inh lazy SpillTracker LabeledStmt.spillTracker();
+	  inh lazy SpillTracker Stmt.spillTracker();
+	  inh lazy SpillTracker StmtExp.spillTracker();
+	  inh lazy SpillTracker Exp.spillTracker();
+	  inh lazy SpillTracker Label.spillTracker();
+	  inh lazy SpillTracker Temp.spillTracker();
+	
+	class SpillTracker{
+		private java.util.Set<Temp> loadedTemps = new java.util.HashSet<Temp>();
+	
+		public void load(Temp load){
+			loadedTemps.add(load);
+		}
+		
+		public void spill(Temp spill){
+			loadedTemps.remove(spill);
+		}
+		
+		public java.util.Set<Temp> getLoadedTemps(){
+			return loadedTemps;
+		}
+	}
+	
+	public int Program.maxCallArgs(){
+		return callCounter().getMaxArgs();
+	}
+	public int Program.neededSpills(){
+		return spilling().getNumber();
+	}
+	
+	public int Procedure.maxCallArgs(){
+		return callCounter().getMaxArgs();
+	}
+	public int Procedure.neededSpills(){
+		return spilling().getNumber();
+	}
+}
